@@ -1,0 +1,73 @@
+name: CI
+
+# 製造コードのチェック（型エラー・テスト・ビルド・フォーマット）
+# package.json がまだ無い間（設計フェーズ）は自動でスキップして成功扱いにする
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect package.json
+        id: detect
+        run: |
+          if [ -f package.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "package.json が無いためコードチェックをスキップします"
+          fi
+
+      - name: Setup Node.js
+        if: steps.detect.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        if: steps.detect.outputs.exists == 'true'
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      # フォーマットチェック: Prettier が devDependencies にある場合のみ実行
+      - name: Format check (Prettier)
+        if: steps.detect.outputs.exists == 'true'
+        run: |
+          if node -e "const p=require('./package.json'); const d={...p.dependencies,...p.devDependencies}; process.exit(d.prettier?0:1)" && [ -d src ]; then
+            npx prettier --check "src/**/*.{ts,tsx,css}"
+          else
+            echo "Prettier 未導入のためフォーマットチェックをスキップします"
+          fi
+
+      - name: Typecheck
+        if: steps.detect.outputs.exists == 'true'
+        run: npm run typecheck
+
+      - name: Unit tests with coverage
+        if: steps.detect.outputs.exists == 'true'
+        run: npm run test:coverage
+
+      - name: Build
+        if: steps.detect.outputs.exists == 'true'
+        run: npm run build
+
+      - name: Upload coverage report
+        if: always() && steps.detect.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
