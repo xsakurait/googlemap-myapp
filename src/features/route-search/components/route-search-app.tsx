@@ -55,6 +55,17 @@ type GpsState =
   | { status: "ok"; latitude: number; longitude: number; accuracy: number }
   | { status: "denied"; message: string };
 
+
+const CARD_CLASS = "my-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
+const CARD_TOP_CLASS = "my-3 rounded-xl border-2 border-blue-600 bg-white p-4 shadow-sm";
+const LABEL_CLASS = "mb-1 mt-2.5 block text-[13px] font-semibold";
+const INPUT_CLASS = "w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base";
+const NOTE_CLASS = "text-xs text-slate-500";
+const BADGE_CLASS = "mr-1.5 inline-block rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-bold text-white";
+const BADGE_SUB_CLASS = "mr-1.5 inline-block rounded-full bg-slate-500 px-2.5 py-0.5 text-xs font-bold text-white";
+const SEGMENT_CLASS = "border-t border-dashed border-slate-200 py-1.5 text-sm";
+const LINK_CLASS = "py-1 text-left text-sm text-blue-600 hover:underline";
+
 /** 検索画面の対話部分（クライアントコンポーネント） */
 export function RouteSearchApp() {
   const [gps, setGps] = useState<GpsState>({ status: "idle" });
@@ -296,45 +307,46 @@ export function RouteSearchApp() {
   return (
     <>
 
-      <div className="card">
-        <label>出発地</label>
-        <div className="row">
-          <div>
-            <button type="button" className="link" onClick={requestGps}>
+      <div className={CARD_CLASS}>
+        <label className={LABEL_CLASS}>出発地</label>
+        <div className="flex gap-2.5">
+          <div className="flex-1">
+            <button type="button" className={LINK_CLASS} onClick={requestGps}>
               📍 現在地から（GPS）
             </button>
-            {gps.status === "loading" && <div className="note">取得中…</div>}
+            {gps.status === "loading" && <div className={NOTE_CLASS}>取得中…</div>}
             {gps.status === "ok" && (
-              <div className="note">
+              <div className={NOTE_CLASS}>
                 現在地を取得済み（精度 ±{gps.accuracy}m）
                 {gps.accuracy > 1000 && " ※精度が低いため、駅がずれる可能性があります"}
               </div>
             )}
-            {gps.status === "denied" && <div className="note">{gps.message}</div>}
+            {gps.status === "denied" && <div className={NOTE_CLASS}>{gps.message}</div>}
           </div>
         </div>
-        <label>
+        <label className={LABEL_CLASS}>
           <input
             type="radio"
             name="originMode"
             checked={originMode === "gps"}
             onChange={() => setOriginMode("gps")}
-            style={{ width: "auto", marginRight: 6 }}
+            className="mr-1.5 w-4 shrink-0"
           />
           現在地（GPS）を使う
         </label>
-        <label>
+        <label className={LABEL_CLASS}>
           <input
             type="radio"
             name="originMode"
             checked={originMode === "manual"}
             onChange={() => setOriginMode("manual")}
-            style={{ width: "auto", marginRight: 6 }}
+            className="mr-1.5 w-4 shrink-0"
           />
           手入力する
         </label>
         {originMode === "manual" && (
           <input
+            className={INPUT_CLASS}
             type="text"
             value={originText}
             onChange={(e) => setOriginText(e.target.value)}
@@ -342,8 +354,9 @@ export function RouteSearchApp() {
           />
         )}
 
-        <label htmlFor="destination">目的地（必須）</label>
+        <label className={LABEL_CLASS} htmlFor="destination">目的地（必須）</label>
         <input
+          className={INPUT_CLASS}
           id="destination"
           type="text"
           value={destination}
@@ -351,10 +364,11 @@ export function RouteSearchApp() {
           placeholder="駅名または住所（例：新宿駅）"
         />
 
-        <div className="row">
-          <div>
-            <label htmlFor="offset">出発（今から何分後）</label>
+        <div className="flex gap-2.5">
+          <div className="flex-1">
+            <label className={LABEL_CLASS} htmlFor="offset">出発（今から何分後）</label>
             <input
+              className={INPUT_CLASS}
               id="offset"
               type="number"
               min={0}
@@ -363,9 +377,10 @@ export function RouteSearchApp() {
               onChange={(e) => setOffsetMinutes(Math.max(0, Math.min(180, Number(e.target.value) || 0)))}
             />
           </div>
-          <div>
-            <label htmlFor="sort">並び替え</label>
+          <div className="flex-1">
+            <label className={LABEL_CLASS} htmlFor="sort">並び替え</label>
             <select
+              className={INPUT_CLASS}
               id="sort"
               value={sortMode}
               onChange={(e) => setSortMode(e.target.value as SortMode)}
@@ -378,21 +393,21 @@ export function RouteSearchApp() {
           </div>
         </div>
 
-        <label>
+        <label className={LABEL_CLASS}>
           <input
             type="checkbox"
             checked={mockMode}
             onChange={(e) => setMockMode(e.target.checked)}
-            style={{ width: "auto", marginRight: 6 }}
+            className="mr-1.5 w-4 shrink-0"
           />
           モックデータで試す（APIキー不要・カウンター対象外）
         </label>
 
-        <button type="button" className="primary" onClick={handleSearch} disabled={searching || stopped}>
+        <button type="button" className="mt-3.5 w-full rounded-lg bg-blue-600 py-3 text-[17px] font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300" onClick={handleSearch} disabled={searching || stopped}>
           {searching ? "検索中…" : stopped ? "今月の上限に達しました" : "検索する"}
         </button>
 
-        <p className="note">
+        <p className={NOTE_CLASS}>
           今月のAPI利用：{usage.count} 件（警告 {settings.warnAt} 件／停止 {settings.stopAt} 件）
           {limitStatus === "warn" && " ※無料枠の上限が近づいています"}
           {limitStatus === "stop" && " ※上限に達したため実データ検索を停止中です"}
@@ -400,7 +415,7 @@ export function RouteSearchApp() {
       </div>
 
       {errorCode && (
-        <div className="error">
+        <div className="my-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900">
           <strong>{ERROR_MESSAGES[errorCode as ApiErrorCode] ?? "エラーが発生しました"}</strong>
           {errorDetail && <div>{errorDetail}</div>}
           {errorCode === "API_KEY_NOT_SET" && (
@@ -413,20 +428,20 @@ export function RouteSearchApp() {
       )}
 
       {result?.source === "mock" && (
-        <div className="warnbox">モックデータ表示中です（実データではありません）。</div>
+        <div className="my-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">モックデータ表示中です（実データではありません）。</div>
       )}
-      {result?.cached && <div className="warnbox">キャッシュ結果を表示しています（API消費なし）。</div>}
+      {result?.cached && <div className="my-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">キャッシュ結果を表示しています（API消費なし）。</div>}
 
       {sortedRoutes.map((route, idx) => (
-        <div key={route.id} className={idx === 0 ? "card top" : "card"}>
+        <div key={route.id} className={idx === 0 ? CARD_TOP_CLASS : CARD_CLASS}>
           <div>
-            {idx === 0 && sortMode === "recommend" && <span className="badge">総合おすすめ</span>}
-            {badges.cheapest.has(route.id) && <span className="badge sub">最安</span>}
-            {badges.fastest.has(route.id) && <span className="badge sub">最短</span>}
-            {badges.fewestTransfers.has(route.id) && <span className="badge sub">乗り換え最少</span>}
+            {idx === 0 && sortMode === "recommend" && <span className={BADGE_CLASS}>総合おすすめ</span>}
+            {badges.cheapest.has(route.id) && <span className={BADGE_SUB_CLASS}>最安</span>}
+            {badges.fastest.has(route.id) && <span className={BADGE_SUB_CLASS}>最短</span>}
+            {badges.fewestTransfers.has(route.id) && <span className={BADGE_SUB_CLASS}>乗り換え最少</span>}
           </div>
           <div>
-            <span className={idx === 0 ? "depart" : undefined} style={idx === 0 ? undefined : { fontSize: 20, fontWeight: 700 }}>
+            <span className={idx === 0 ? "text-[28px] font-extrabold" : "text-xl font-bold"}>
               {formatHm(route.departureTime)}
             </span>
             {" → "}
@@ -439,20 +454,20 @@ export function RouteSearchApp() {
           </div>
           {route.segments.map((seg, i) =>
             seg.kind === "transit" ? (
-              <div key={i} className="segment">
+              <div key={i} className={SEGMENT_CLASS}>
                 🚃 {seg.lineName ?? "電車"}：{seg.departureStop} {formatHm(seg.departureTime)}発 →{" "}
                 {seg.arrivalStop} {formatHm(seg.arrivalTime)}着
                 {typeof seg.stopCount === "number" && `（${seg.stopCount}駅）`}
               </div>
             ) : (
-              <div key={i} className="segment">
+              <div key={i} className={SEGMENT_CLASS}>
                 🚶 徒歩 {formatDurationSecondsJa(seg.durationSeconds)}
                 {typeof seg.distanceMeters === "number" && `（${seg.distanceMeters}m）`}
               </div>
             ),
           )}
           <div>
-            <a href={mapsLink(route)} target="_blank" rel="noreferrer">
+            <a className="text-sm text-blue-600 hover:underline" href={mapsLink(route)} target="_blank" rel="noreferrer">
               Googleマップで開く
             </a>
           </div>
@@ -460,20 +475,20 @@ export function RouteSearchApp() {
       ))}
 
       {result && sortedRoutes.length > 0 && (
-        <p className="note">
+        <p className={NOTE_CLASS}>
           ※「最安」は、APIが返した候補（最大4件）のうち運賃が取得できたものの中での最安です。
           IC／切符の区別、特急・グリーン料金、定期券利用時の実質最安は対象外です。運賃が取得できないルートは「運賃不明」として分けて表示しています。
         </p>
       )}
 
       {history.length > 0 && (
-        <div className="card">
+        <div className={CARD_CLASS}>
           <strong>検索履歴</strong>
           {history.map((h, i) => (
             <button
               key={i}
               type="button"
-              className="link history-item"
+              className="block w-full py-1 text-left text-sm text-blue-600 hover:underline"
               onClick={() => {
                 setDestination(h.destination);
                 setOffsetMinutes(h.offsetMinutes);
@@ -498,21 +513,23 @@ export function RouteSearchApp() {
         </div>
       )}
 
-      <details>
-        <summary>設定（無料枠ガード）</summary>
-        <div className="row">
-          <div>
-            <label htmlFor="warnAt">警告件数</label>
+      <details className="mt-3.5">
+        <summary className="cursor-pointer text-sm font-semibold">設定（無料枠ガード）</summary>
+        <div className="flex gap-2.5">
+          <div className="flex-1">
+            <label className={LABEL_CLASS} htmlFor="warnAt">警告件数</label>
             <input
+              className={INPUT_CLASS}
               id="warnAt"
               type="number"
               value={settings.warnAt}
               onChange={(e) => saveSettings({ ...settings, warnAt: Number(e.target.value) || 0 })}
             />
           </div>
-          <div>
-            <label htmlFor="stopAt">停止件数</label>
+          <div className="flex-1">
+            <label className={LABEL_CLASS} htmlFor="stopAt">停止件数</label>
             <input
+              className={INPUT_CLASS}
               id="stopAt"
               type="number"
               value={settings.stopAt}
@@ -520,7 +537,7 @@ export function RouteSearchApp() {
             />
           </div>
         </div>
-        <p className="note">初期値：警告 8,000件／停止 10,000件（Routes API Essentials の無料枠 月10,000件に合わせた値）。</p>
+        <p className={NOTE_CLASS}>初期値：警告 8,000件／停止 10,000件（Routes API Essentials の無料枠 月10,000件に合わせた値）。</p>
       </details>
     </>
   );

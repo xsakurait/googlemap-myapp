@@ -12,10 +12,18 @@
 | 区分 | 内容 |
 | --- | --- |
 | 言語・基盤 | TypeScript、Next.js 15（App Router）、React 19 |
+| デザイン | Tailwind CSS v4（ユーティリティファースト） |
+| API | Hono（Next.js の Route Handler 上で /api 配下を担当） |
 | 実行環境 | Node.js 20、Docker（Next.js の standalone 出力） |
 | 外部サービス | Google Routes API（TRANSIT）、Supabase（PostgreSQL、匿名認証、RLS） |
 | テスト | Vitest（単体テスト。カバレッジ 100% を CI で担保） |
 | CI | GitHub Actions（型チェック、テスト、ビルド、コーディング規約チェック、ドキュメント形式チェック） |
+
+### Next.js を採用した理由
+
+- 画面（React）と API（Route Handler）を 1 つのプロジェクトと TypeScript で完結でき、API キーをサーバー側に隠したままブラウザから検索できる。
+- サーバー側にキャッシュ（同一条件 60 秒）を持てるため、同じ検索の繰り返しで無料枠を消費しない。
+- standalone 出力で Docker 化と単体起動が簡単で、個人用の運用に合う。
 
 ## 使用した AI エージェント
 
