@@ -16,7 +16,7 @@ export function readSerpApiKey(env: NodeJS.ProcessEnv = process.env): string | n
 /** "8:05 AM" のような時刻文字列を、出発日と組み合わせて ISO 文字列にする。解釈できなければ null */
 export function parseClockTime(value: unknown, baseDate: Date): string | null {
   if (typeof value !== "string") return null;
-  const m = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  const m = value.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
   if (!m) return null;
   let hour = Number(m[1]);
   const minute = Number(m[2]);
@@ -98,7 +98,7 @@ export async function fetchTransitRoutes(
   return parseDirectionsResponse(json, departureDate);
 }
 
-/** Directions の応答を正規化する */
+/** Directions の応答を正規化する（direction=ルート、trips=区間。運賃・所要・時刻は direction 側にある） */
 export function parseDirectionsResponse(json: JsonRecord, departureDate: Date): NormalizedRoute[] {
   const directions = Array.isArray(json.directions) ? json.directions : [];
   const routes: NormalizedRoute[] = [];
@@ -106,58 +106,41 @@ export function parseDirectionsResponse(json: JsonRecord, departureDate: Date): 
     const direction = asRecord(directionRaw);
     if (!direction) return;
     const trips = Array.isArray(direction.trips) ? direction.trips : [];
-    trips.forEach((tripRaw, ti) => {
+    const segments: RouteSegment[] = [];
+    for (const tripRaw of trips) {
       const trip = asRecord(tripRaw);
-      if (!trip) return;
-      const details = Array.isArray(trip.details) ? trip.details : [];
-      const segments: RouteSegment[] = [];
-      let totalSeconds = 0;
-      for (const detailRaw of details) {
-        const detail = asRecord(detailRaw);
-        if (!detail) continue;
-        const duration = asNumber(detail.duration) ?? 0;
-        totalSeconds += duration;
-        const typeText = (asString(detail.type) ?? asString(detail.travel_mode) ?? "").toLowerCase();
-        if (typeText.includes("walk")) {
-          segments.push({
-            kind: "walk",
-            durationSeconds: duration,
-            distanceMeters: asNumber(detail.distance) ?? undefined,
-          });
-          continue;
-        }
-        const depStation = asRecord(detail.departure_station);
-        const arrStation = asRecord(detail.arrival_station);
-        segments.push({
-          kind: "transit",
-          lineName:
-            asString(detail.line) ?? asString(detail.transit_line) ?? asString(detail.name) ?? undefined,
-          vehicleType: asString(detail.transit_type) ?? undefined,
-          departureStop:
-            asString(detail.departure_station_name) ?? (depStation ? asString(depStation.name) ?? undefined : undefined),
-          arrivalStop:
-            asString(detail.arrival_station_name) ?? (arrStation ? asString(arrStation.name) ?? undefined : undefined),
-          departureTime: parseClockTime(detail.departure_time, departureDate) ?? undefined,
-          arrivalTime: parseClockTime(detail.arrival_time, departureDate) ?? undefined,
-          stopCount: asNumber(detail.num_stops) ?? asNumber(detail.stops) ?? undefined,
-          durationSeconds: duration,
-        });
-      }
-      if (segments.length === 0) return;
-      const fare = asRecord(trip.fare);
-      const farePrice = fare ? asNumber(fare.price) : asNumber(trip.price);
-      const transitCount = segments.filter((s) => s.kind === "transit").length;
-      routes.push({
-        id: `serpapi-transit-${di}-${ti}`,
-        fareYen: farePrice,
-        durationSeconds: asNumber(trip.duration) ?? totalSeconds,
-        distanceMeters: null,
-        departureTime: segments.find((s) => s.departureTime)?.departureTime ?? null,
-        arrivalTime: [...segments].reverse().find((s) => s.arrivalTime)?.arrivalTime ?? null,
-        transfers: Math.max(0, transitCount - 1),
-        segments,
-        mode: "transit",
+      if (!trip) continue;
+      const depStop = asRecord(trip.start_stop);
+      const arrStop = asRecord(trip.end_stop);
+      const title = asString(trip.title) ?? "";
+      const walkOnly =
+        (asString(trip.travel_mode) ?? "").toLowerCase() === "walking" ||
+        title.includes("徒歩");
+      segments.push({
+        kind: walkOnly ? "walk" : "transit",
+        lineName: walkOnly ? undefined : title || undefined,
+        departureStop: depStop ? asString(depStop.name) ?? undefined : undefined,
+        arrivalStop: arrStop ? asString(arrStop.name) ?? undefined : undefined,
+        departureTime:
+          parseClockTime(asString(direction.start_time), departureDate) ?? undefined,
+        arrivalTime:
+          parseClockTime(asString(direction.end_time), departureDate) ?? undefined,
+        stopCount: Array.isArray(trip.stops) ? trip.stops.length : undefined,
+        durationSeconds: asNumber(trip.duration) ?? 0,
       });
+    }
+    if (segments.length === 0) return;
+    const transitCount = segments.filter((seg) => seg.kind === "transit").length;
+    routes.push({
+      id: `serpapi-transit-${di}`,
+      fareYen: asNumber(direction.cost),
+      durationSeconds: asNumber(direction.duration) ?? 0,
+      distanceMeters: asNumber(direction.distance),
+      departureTime: parseClockTime(asString(direction.start_time), departureDate),
+      arrivalTime: parseClockTime(asString(direction.end_time), departureDate),
+      transfers: Math.max(0, transitCount - 1),
+      segments,
+      mode: "transit",
     });
   });
   return routes;
