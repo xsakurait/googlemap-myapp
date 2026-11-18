@@ -18,11 +18,11 @@ function walk(dir) {
 const files = walk(SRC).filter((f) => /\.tsx?$/.test(f));
 
 // --- 1. 構成チェック ---
-// 配置を許可するルート: src/app（画面・API）, src/lib（共通）, src/features（機能単位）
-const allowedRoots = [/^src\/app\//, /^src\/lib\//, /^src\/features\//];
+// 配置を許可するルート: src/app（画面・API）, src/lib（共通）, src/features（機能単位）, src/components（共通UI）
+const allowedRoots = [/^src\/app\//, /^src\/lib\//, /^src\/features\//, /^src\/components\//];
 for (const f of files) {
   if (!allowedRoots.some((r) => r.test(f))) {
-    violations.push(`構成: ${f} は許可された配置（app / lib / features）ではありません`);
+    violations.push(`構成: ${f} は許可された配置（app / lib / features / components）ではありません`);
   }
 }
 const hasFeatures = files.some((f) => f.startsWith("src/features/"));
