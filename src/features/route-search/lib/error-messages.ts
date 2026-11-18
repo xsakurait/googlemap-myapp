@@ -8,4 +8,6 @@ export const ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   UPSTREAM_ERROR: "Google Routes API でエラーが発生しました。しばらく待って再試行してください。",
   INVALID_PARAMS: "入力内容に不備があります。目的地と出発地を確認してください。",
   LIMIT_REACHED: "今月の無料枠ガード（上限）に達したため検索を停止しています。",
+  SERPAPI_KEY_NOT_SET:
+    "SerpApi の APIキーが未設定です。PC上の .env.local に SERPAPI_API_KEY を設定してください（手順は README のセットアップ）。車・徒歩の検索とモックデータでの確認はキーがなくてもできます。",
 };
