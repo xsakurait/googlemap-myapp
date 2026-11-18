@@ -16,8 +16,8 @@
 1. Google Cloud でプロジェクト作成 → 課金アカウント紐付け → Routes API 有効化 → API キー発行（API 制限＝Routes API のみ）＋クォータ上限設定。
 2. `.env.sample` をコピーして `.env.local` を作り、`GOOGLE_MAPS_API_KEY` にキーを入れる（キーはチャット等に貼らない）。`.env.local` は gitignore 済みで Git には上がらない。
 3. 起動は次のどちらか。
-   - ローカル：`start.bat` をダブルクリック → ブラウザで http://localhost:3000 を開く（手動の場合：`npm install` → `npm run build` → `npm run start`）
-   - Docker：`docker compose up --build` → http://localhost:3000
+   - ローカル：`start.bat` をダブルクリック → ブラウザで `http://localhost:3000` を開く（手動の場合：`npm install` → `npm run build` → `npm run start`）
+   - Docker：`docker compose up --build` → `http://localhost:3000`
 4. キーなしでも「モックデータで試す」で画面確認ができる。
 
 ## Docker と展開
