@@ -13,24 +13,21 @@ import { ApiError } from "@/features/route-search/lib/types";
 const DIRECTIONS_FIXTURE = {
   directions: [
     {
+      travel_mode: "Transit",
+      start_time: "8:05",
+      end_time: "8:30",
+      duration: 1500,
+      distance: 10765,
+      cost: 230,
+      currency: "JPY",
       trips: [
         {
+          travel_mode: "Transit",
+          title: "山手線",
           duration: 1500,
-          fare: { price: 230, currency: "JPY" },
-          details: [
-            { type: "walk", duration: 300 },
-            {
-              type: "transit",
-              duration: 1200,
-              line: "JR山手線",
-              transit_type: "TRAIN",
-              departure_station: { name: "品川" },
-              arrival_station: { name: "新宿" },
-              departure_time: "8:05 AM",
-              arrival_time: "8:25 AM",
-              num_stops: 8,
-            },
-          ],
+          start_stop: { name: "品川駅", time: "8:05" },
+          end_stop: { name: "新宿駅", time: "8:30" },
+          stops: [{ name: "大崎駅" }, { name: "五反田駅" }],
         },
       ],
     },
@@ -88,9 +85,10 @@ describe("parseDirectionsResponse", () => {
     expect(routes[0].fareYen).toBe(230);
     expect(routes[0].durationSeconds).toBe(1500);
     expect(routes[0].transfers).toBe(0);
-    expect(routes[0].segments).toHaveLength(2);
-    expect(routes[0].segments[1].lineName).toBe("JR山手線");
-    expect(routes[0].segments[1].departureStop).toBe("品川");
+    expect(routes[0].segments).toHaveLength(1);
+    expect(routes[0].segments[0].lineName).toBe("山手線");
+    expect(routes[0].segments[0].departureStop).toBe("品川駅");
+    expect(routes[0].segments[0].stopCount).toBe(2);
     expect(routes[0].departureTime).toBe("2026-11-19T08:05:00+09:00");
   });
   it("UT-154: directions が無ければ空配列", () => {
@@ -165,21 +163,17 @@ describe("parse variants（欠けたフィールドへの耐性）", () => {
         "not-a-record",
         { trips: "nope" },
         {
+          // cost と duration が無い direction: 運賃は null、所要は 0
+          start_time: "9:00",
+          end_time: "9:10",
           trips: [
-            { details: [] },
+            "junk",
             {
-              // duration と fare が無い trip: 合計時間は details の合算、運賃は null
-              details: [
-                { type: "walk", duration: 60, distance: 80 },
-                {
-                  type: "transit",
-                  duration: 600,
-                  departure_station_name: "駅A",
-                  arrival_station_name: "駅B",
-                  stops: 3,
-                },
-                "junk",
-              ],
+              travel_mode: "Transit",
+              title: "テスト線",
+              duration: 600,
+              start_stop: { name: "駅A" },
+              end_stop: { name: "駅B" },
             },
           ],
         },
@@ -188,12 +182,11 @@ describe("parse variants（欠けたフィールドへの耐性）", () => {
     const routes = parseDirectionsResponse(json, new Date(2026, 10, 19));
     expect(routes).toHaveLength(1);
     expect(routes[0].fareYen).toBeNull();
-    expect(routes[0].durationSeconds).toBe(660);
-    expect(routes[0].segments[0].distanceMeters).toBe(80);
-    expect(routes[0].segments[1].departureStop).toBe("駅A");
-    expect(routes[0].segments[1].stopCount).toBe(3);
-    expect(routes[0].segments[1].lineName).toBeUndefined();
-    expect(routes[0].departureTime).toBeNull();
+    expect(routes[0].durationSeconds).toBe(0);
+    expect(routes[0].segments).toHaveLength(1);
+    expect(routes[0].segments[0].departureStop).toBe("駅A");
+    expect(routes[0].segments[0].lineName).toBe("テスト線");
+    expect(routes[0].departureTime).toBe("2026-11-19T09:00:00+09:00");
   });
 
   it("UT-163: flights の欠損パターンを処理する", () => {
@@ -252,30 +245,28 @@ describe("parseFlightsResponse variants 2", () => {
 });
 
 describe("parse variants 3（残りの分岐）", () => {
-  it("UT-165: PM の時刻・details の欠損パターンを処理する", () => {
+  it("UT-165: PM の時刻・trips の欠損パターンを処理する", () => {
     expect(parseClockTime("1:05 PM", new Date(2026, 10, 19))).toBe("2026-11-19T13:05:00+09:00");
     const json = {
       directions: [
         {
+          start_time: "10:00",
+          end_time: "10:20",
+          duration: 1200,
           trips: [
             "junk-trip",
             {},
-            {
-              details: [
-                { type: "walk" },
-                { travel_mode: "transit", duration: 10 },
-                { duration: 20, departure_station: {}, arrival_station: {} },
-              ],
-            },
+            { travel_mode: "Walking", title: "徒歩", duration: 300 },
           ],
         },
       ],
     };
     const routes = parseDirectionsResponse(json, new Date(2026, 10, 19));
     expect(routes).toHaveLength(1);
-    expect(routes[0].segments).toHaveLength(3);
+    expect(routes[0].segments).toHaveLength(2);
     expect(routes[0].segments[0].durationSeconds).toBe(0);
-    expect(routes[0].segments[2].departureStop).toBeUndefined();
+    expect(routes[0].segments[1].kind).toBe("walk");
+    expect(routes[0].segments[1].departureStop).toBeUndefined();
   });
 
   it("UT-166: flights の欠損パターンを処理する", () => {
@@ -300,6 +291,35 @@ describe("parse variants 3（残りの分岐）", () => {
       code: "UPSTREAM_ERROR",
       status: 502,
     });
+  });
+});
+
+describe("parseDirectionsResponse variants 4", () => {
+  it("UT-169: start_stop / end_stop に name が無いケース", () => {
+    const routes = parseDirectionsResponse(
+      {
+        directions: [
+          {
+            start_time: "7:00",
+            end_time: "7:15",
+            duration: 900,
+            trips: [
+              {
+                travel_mode: "Transit",
+                title: "テスト線",
+                duration: 900,
+                start_stop: {},
+                end_stop: {},
+              },
+            ],
+          },
+        ],
+      },
+      new Date(2026, 10, 19),
+    );
+    expect(routes).toHaveLength(1);
+    expect(routes[0].segments[0].departureStop).toBeUndefined();
+    expect(routes[0].segments[0].arrivalStop).toBeUndefined();
   });
 });
 
