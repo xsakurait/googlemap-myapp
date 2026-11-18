@@ -56,6 +56,10 @@ type GpsState =
   | { status: "denied"; message: string };
 
 
+/** 実データ検索が利用できない旨の通知文（Routes API が日本の公共交通データを返さないため） */
+const REAL_SEARCH_UNAVAILABLE_MESSAGE =
+  "実データ検索は現在利用できません。Google Routes API が日本の公共交通（電車）のデータを返さないためです（実キーで確認済み）。モックデータでの動作確認は引き続き可能です。";
+
 const CARD_CLASS = "my-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
 const CARD_TOP_CLASS = "my-3 rounded-xl border-2 border-blue-600 bg-white p-4 shadow-sm";
 const LABEL_CLASS = "mb-1 mt-2.5 block text-[13px] font-semibold";
@@ -307,6 +311,10 @@ export function RouteSearchApp() {
   return (
     <>
 
+      <div className="my-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+        お知らせ：{REAL_SEARCH_UNAVAILABLE_MESSAGE}
+      </div>
+
       <div className={CARD_CLASS}>
         <label className={LABEL_CLASS}>出発地</label>
         <div className="flex gap-2.5">
@@ -424,6 +432,12 @@ export function RouteSearchApp() {
               PC上の .env.local に GOOGLE_MAPS_API_KEY を設定 → アプリ再起動（手順は README のセットアップ）
             </div>
           )}
+        </div>
+      )}
+
+      {result && result.source === "google" && sortedRoutes.length === 0 && (
+        <div className="my-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+          {REAL_SEARCH_UNAVAILABLE_MESSAGE}
         </div>
       )}
 
