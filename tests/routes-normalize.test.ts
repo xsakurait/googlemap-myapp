@@ -67,3 +67,47 @@ describe("normalizeRoutes（異常系・境界）", () => {
     expect(ng[0].fareYen).toBeNull();
   });
 });
+
+describe("normalizeRoutes フォールバック", () => {
+  const transitStep = {
+    travelMode: "TRANSIT",
+    staticDuration: "600s",
+    transitDetails: {
+      line: { nameShort: "山手線" },
+      stopCount: 5,
+      stopDetails: {
+        departureStop: { name: "品川" },
+        arrivalStop: { name: "新宿" },
+        departureTime: "2026-11-17T01:00:00Z",
+        arrivalTime: "2026-11-17T01:10:00Z",
+      },
+    },
+  };
+  it("UT-024: line.name が無ければ nameShort を使う", () => {
+    const routes = normalizeRoutes({ routes: [{ duration: "600s", legs: [{ steps: [transitStep] }] }] });
+    expect(routes[0].segments[0].lineName).toBe("山手線");
+  });
+  it("UT-025: leg に時刻が無ければ停車詳細の時刻を使う", () => {
+    const routes = normalizeRoutes({ routes: [{ duration: "600s", legs: [{ steps: [transitStep] }] }] });
+    expect(routes[0].departureTime).toBe("2026-11-17T01:00:00Z");
+    expect(routes[0].arrivalTime).toBe("2026-11-17T01:10:00Z");
+  });
+  it("UT-026: steps の無い leg は空セグメントとして扱う", () => {
+    const routes = normalizeRoutes({ routes: [{ duration: "0s", legs: [{}] }] });
+    expect(routes[0].segments).toEqual([]);
+    expect(routes[0].transfers).toBe(0);
+  });
+  it("UT-027: 運賃の nanos を円に繰り上げ、通貨コード無しは JPY", () => {
+    const routes = normalizeRoutes({
+      routes: [{ duration: "60s", travelAdvisories: { transitFare: { units: "200", nanos: 500000000 } }, legs: [] }],
+    });
+    expect(routes[0].fareYen).toBe(201);
+    expect(routes[0].currencyCode).toBe("JPY");
+  });
+  it("UT-028: 運賃 units が数値でなければ運賃不明（異常系）", () => {
+    const routes = normalizeRoutes({
+      routes: [{ duration: "60s", travelAdvisories: { transitFare: { units: "abc" } }, legs: [] }],
+    });
+    expect(routes[0].fareYen).toBeNull();
+  });
+});
