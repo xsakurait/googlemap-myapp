@@ -10,6 +10,19 @@
 - 車／徒歩の検索: Google Routes API のキー（`GOOGLE_MAPS_API_KEY`）。無料枠は月 10,000 件まで
 - どちらのキーも未設定の場合は、モックデータでの動作確認のみ利用できます
 
+## 追加で登録が必要な API 一覧
+
+検索機能を使うには、次の API の登録とキー取得が必要です（配布物にはキーは含まれません）。
+
+| API | 用途 | 登録 | 無料枠 | キーの入手先 | 環境変数 |
+| --- | --- | --- | --- | --- | --- |
+| SerpApi | 電車・バス（Google Maps Directions）と飛行機（Google Flights）の検索 | 必要（無料登録、カード不要） | 月 250 件（成功した検索のみカウント） | serpapi.com で登録し、ダッシュボードで確認 | `SERPAPI_API_KEY` |
+| Google Routes API | 車・徒歩の検索 | 必要（Google Cloud のプロジェクト作成と請求先アカウントの紐付け） | 月 10,000 件（Essentials） | Google Cloud Console で Routes API を有効化して発行 | `GOOGLE_MAPS_API_KEY` |
+| Supabase（任意） | 検索履歴・設定・利用カウンターの保存 | 任意 | Free プラン | supabase.com でプロジェクトを作成 | `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+
+- 電車・バスのみ使う場合は SerpApi だけ、車・徒歩も使う場合は Google Routes API も、というように使う分だけ設定すれば動きます。
+- 現時点で使っている外部 API は上記のみです。ODPT や Aviationstack は未使用です（将来の拡張候補として要件定義書 §10 に記載）。
+
 ## 作ろうとした理由
 
 - Google マップの通常の検索では、候補を運賃・所要時間・乗り換え回数の自分の重み付けで並べ替えることや、無料枠の利用状況を見ながら使うことができません。
