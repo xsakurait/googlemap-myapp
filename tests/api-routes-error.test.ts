@@ -43,6 +43,7 @@ describe("POST /api/routes 異常系（モック）", () => {
       origin: { type: "address", address: "品川駅" },
       destination: "新宿駅",
       offsetMinutes: 0,
+      modes: ["drive"],
     });
     fetchMock.mockRejectedValue(new Error("net down"));
     const res = await POST(makeRequest());

@@ -8,7 +8,9 @@ import type {
   RoutesApiResponseBody,
   SearchParams,
   SortMode,
+  TransportMode,
 } from "@/features/route-search/lib/types";
+import { SERPAPI_LIMITS } from "@/features/route-search/lib/serpapi-client";
 import { sortRoutes, computeBadges } from "@/features/route-search/lib/ranking";
 import { ERROR_MESSAGES } from "@/features/route-search/lib/error-messages";
 import { formatHm, formatDurationSecondsJa } from "@/features/route-search/lib/time";
@@ -46,6 +48,7 @@ import {
 } from "@/components/ui/select";
 
 const LS_ORIGIN = "tra.originText";
+const LS_SERPAPI_USAGE = "tra.usage.serpapi";
 const LS_USAGE = "tra.usage";
 const LS_HISTORY = "tra.history";
 const LS_SETTINGS = "tra.settings";
@@ -71,9 +74,13 @@ type GpsState =
   | { status: "denied"; message: string };
 
 
-/** 実データ検索が利用できない旨の通知文（Routes API が日本の公共交通データを返さないため） */
-const REAL_SEARCH_UNAVAILABLE_MESSAGE =
-  "実データ検索は現在利用できません。Google Routes API が日本の公共交通（電車）のデータを返さないためです（実キーで確認済み）。モックデータでの動作確認は引き続き可能です。";
+/** 移動手段の表示名 */
+const MODE_LABELS: Record<TransportMode, string> = {
+  transit: "電車・バス",
+  flight: "飛行機",
+  drive: "車",
+  walk: "徒歩",
+};
 
 const SEGMENT_CLASS = "border-t border-dashed border-slate-200 py-1.5 text-sm";
 
@@ -91,6 +98,16 @@ export function RouteSearchApp() {
   const [errorDetail, setErrorDetail] = useState<string>("");
   const [result, setResult] = useState<RoutesApiResponseBody | null>(null);
   const [usage, setUsage] = useState<UsageState>({ month: "", count: 0 });
+  const [serpUsage, setSerpUsage] = useState<UsageState>({ month: "", count: 0 });
+  const serpUsageRef = useRef(serpUsage);
+  serpUsageRef.current = serpUsage;
+  const [modes, setModes] = useState<Record<TransportMode, boolean>>({
+    transit: true,
+    flight: false,
+    drive: false,
+    walk: false,
+  });
+  const [apiConfig, setApiConfig] = useState<{ google: boolean; serpapi: boolean } | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_USAGE_LIMITS);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const usageRef = useRef(usage);
@@ -103,6 +120,11 @@ export function RouteSearchApp() {
   useEffect(() => {
     setOriginText(localStorage.getItem(LS_ORIGIN) ?? "");
     setUsage(loadUsage(localStorage.getItem(LS_USAGE), new Date()));
+    setSerpUsage(loadUsage(localStorage.getItem(LS_SERPAPI_USAGE), new Date()));
+    void fetch("/api/config")
+      .then((r) => r.json())
+      .then((cfg: { google: boolean; serpapi: boolean }) => setApiConfig(cfg))
+      .catch(() => {});
     try {
       const h = JSON.parse(localStorage.getItem(LS_HISTORY) ?? "[]") as HistoryItem[];
       if (Array.isArray(h)) setHistory(h.slice(0, 10));
@@ -179,6 +201,9 @@ export function RouteSearchApp() {
   }, [requestGps]);
 
   const limitStatus = checkLimit(usage, settings.warnAt, settings.stopAt);
+  const serpLimitStatus = checkLimit(serpUsage, SERPAPI_LIMITS.warnAt, SERPAPI_LIMITS.stopAt);
+  const serpStopped = serpLimitStatus === "stop";
+  const [limitNotice, setLimitNotice] = useState<string | null>(null);
   const stopped = limitStatus === "stop" && !mockMode;
 
   const currentOrigin = useCallback((): OriginInput | null => {
@@ -215,8 +240,8 @@ export function RouteSearchApp() {
           return;
         }
         setResult(data);
-        // 実API・非キャッシュのときだけ月間カウンターを加算
-        if (data.source === "google" && !data.cached) {
+        // 実API・非キャッシュのときだけ、使った取得元の月間カウンターを加算
+        if (!data.cached && data.usedSources?.includes("google")) {
           const next = increment(usageRef.current, new Date());
           setUsage(next);
           localStorage.setItem(LS_USAGE, serializeUsage(next));
@@ -224,6 +249,14 @@ export function RouteSearchApp() {
           if (remote) {
             void incrementRemoteUsage(remote.client, remote.userId, next.month).catch(() => {});
           }
+        }
+        if (!data.cached && (data.serpApiCalls ?? 0) > 0) {
+          let next = serpUsageRef.current;
+          for (let i = 0; i < (data.serpApiCalls ?? 0); i++) {
+            next = increment(next, new Date());
+          }
+          setSerpUsage(next);
+          localStorage.setItem(LS_SERPAPI_USAGE, serializeUsage(next));
         }
         if (params.origin.type === "address") {
           localStorage.setItem(LS_ORIGIN, params.origin.address);
@@ -258,10 +291,35 @@ export function RouteSearchApp() {
     [],
   );
 
+  const selectedModes = useCallback((): TransportMode[] => {
+    return (Object.keys(modes) as TransportMode[]).filter((m) => modes[m]);
+  }, [modes]);
+
   const handleSearch = useCallback(() => {
-    if (stopped) {
+    if (stopped && (modes.drive || modes.walk)) {
       setErrorCode("LIMIT_REACHED");
       return;
+    }
+    const selected = selectedModes();
+    if (selected.length === 0) {
+      setErrorCode("INVALID_PARAMS");
+      setErrorDetail("移動手段を1つ以上選んでください");
+      return;
+    }
+    setLimitNotice(null);
+    let effectiveModes = selected;
+    if (serpStopped && (selected.includes("transit") || selected.includes("flight"))) {
+      if (selected.every((m) => m === "transit" || m === "flight")) {
+        setErrorCode("LIMIT_REACHED");
+        setErrorDetail(
+          "SerpApi の無料枠（月250件）の上限に達したため、電車・バス／飛行機の検索を停止しています。翌月に回復します。",
+        );
+        return;
+      }
+      effectiveModes = selected.filter((m) => m !== "transit" && m !== "flight");
+      setLimitNotice(
+        "SerpApi の無料枠（月250件）の上限に達したため、電車・バス／飛行機は検索しませんでした（翌月に回復します）。",
+      );
     }
     const origin = currentOrigin();
     if (!destination.trim()) {
@@ -275,12 +333,12 @@ export function RouteSearchApp() {
       return;
     }
     void runSearch(
-      { origin, destination: destination.trim(), offsetMinutes },
+      { origin, destination: destination.trim(), offsetMinutes, modes: effectiveModes },
       originLabel(),
       sortMode,
       mockMode,
     );
-  }, [stopped, currentOrigin, destination, offsetMinutes, originLabel, sortMode, mockMode, runSearch]);
+  }, [stopped, currentOrigin, destination, offsetMinutes, originLabel, sortMode, mockMode, runSearch, modes, selectedModes]);
 
   const sortedRoutes = useMemo(
     () => (result ? sortRoutes(result.routes, sortMode) : []),
@@ -317,11 +375,14 @@ export function RouteSearchApp() {
 
   return (
     <>
-      <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
-        <AlertDescription className="text-amber-900">
-          お知らせ：{REAL_SEARCH_UNAVAILABLE_MESSAGE}
-        </AlertDescription>
-      </Alert>
+      {apiConfig && !apiConfig.serpapi && (
+        <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
+          <AlertDescription className="text-amber-900">
+            お知らせ：電車・バス／飛行機の検索には SerpApi の APIキー設定が必要です（.env.local の
+            SERPAPI_API_KEY）。キー未設定でも、車・徒歩（Google キー設定時）とモックデータは使えます。
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Card className="my-3 py-4">
         <CardContent className="space-y-1 px-4">
@@ -409,6 +470,27 @@ export function RouteSearchApp() {
             </div>
           </div>
 
+          <Label className="pt-2 text-[13px]">移動手段</Label>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 pt-1">
+            {(Object.keys(MODE_LABELS) as TransportMode[]).map((m) => (
+              <div key={m} className="flex items-center gap-2">
+                <Checkbox
+                  id={`mode-${m}`}
+                  checked={modes[m]}
+                  disabled={serpStopped && (m === "transit" || m === "flight")}
+                  onCheckedChange={(v) => setModes((prev) => ({ ...prev, [m]: v === true }))}
+                />
+                <Label htmlFor={`mode-${m}`}>{MODE_LABELS[m]}</Label>
+              </div>
+            ))}
+          </div>
+
+          {serpStopped && (
+            <p className="pt-1 text-xs text-red-600">
+              SerpApi の無料枠（月250件）の上限に達したため、電車・バス／飛行機は選択できません（翌月に回復します）。
+            </p>
+          )}
+
           <div className="flex items-center gap-2 pt-2">
             <Checkbox
               id="mock"
@@ -423,15 +505,42 @@ export function RouteSearchApp() {
             size="lg"
             className="mt-4 w-full bg-blue-600 text-[17px] font-bold hover:bg-blue-700"
             onClick={handleSearch}
-            disabled={searching || stopped}
+            disabled={searching || (stopped && (modes.drive || modes.walk))}
           >
-            {searching ? "検索中…" : stopped ? "今月の上限に達しました" : "検索する"}
+            {searching
+              ? "検索中…"
+              : stopped && (modes.drive || modes.walk)
+                ? "今月の上限に達しました"
+                : "検索する"}
           </Button>
 
-          <p className="pt-2 text-xs text-muted-foreground">
-            今月のAPI利用：{usage.count} 件（警告 {settings.warnAt} 件／停止 {settings.stopAt} 件）
+          <p
+            className={
+              limitStatus === "stop"
+                ? "pt-2 text-xs font-semibold text-red-600"
+                : limitStatus === "warn"
+                  ? "pt-2 text-xs font-semibold text-amber-600"
+                  : "pt-2 text-xs text-muted-foreground"
+            }
+          >
+            Google Routes API：今月 {usage.count} 件使用（上限 {settings.stopAt} 件・残り{" "}
+            {Math.max(0, settings.stopAt - usage.count)} 件）
             {limitStatus === "warn" && " ※無料枠の上限が近づいています"}
-            {limitStatus === "stop" && " ※上限に達したため実データ検索を停止中です"}
+            {limitStatus === "stop" && " ※上限に達したため車・徒歩の検索を停止中です"}
+          </p>
+          <p
+            className={
+              serpLimitStatus === "stop"
+                ? "text-xs font-semibold text-red-600"
+                : serpLimitStatus === "warn"
+                  ? "text-xs font-semibold text-amber-600"
+                  : "text-xs text-muted-foreground"
+            }
+          >
+            SerpApi：今月 {serpUsage.count} 件使用（上限 {SERPAPI_LIMITS.stopAt} 件・残り{" "}
+            {Math.max(0, SERPAPI_LIMITS.stopAt - serpUsage.count)} 件）
+            {serpLimitStatus === "warn" && " ※無料枠の上限が近づいています"}
+            {serpLimitStatus === "stop" && " ※上限に達したため電車・バス／飛行機の検索を停止中です"}
           </p>
         </CardContent>
       </Card>
@@ -442,7 +551,7 @@ export function RouteSearchApp() {
             {ERROR_MESSAGES[errorCode as ApiErrorCode] ?? "エラーが発生しました"}
           </AlertTitle>
           {errorDetail && <AlertDescription>{errorDetail}</AlertDescription>}
-          {errorCode === "API_KEY_NOT_SET" && (
+          {(errorCode === "API_KEY_NOT_SET" || errorCode === "SERPAPI_KEY_NOT_SET") && (
             <AlertDescription>
               手順：Google Cloudでプロジェクト作成 → 課金紐付け → Routes API有効化 → APIキー発行 →
               PC上の .env.local に GOOGLE_MAPS_API_KEY を設定 → アプリ再起動（手順は README のセットアップ）
@@ -451,13 +560,17 @@ export function RouteSearchApp() {
         </Alert>
       )}
 
-      {result && result.source === "google" && sortedRoutes.length === 0 && (
+      {limitNotice && (
         <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
-          <AlertDescription className="text-amber-900">
-            {REAL_SEARCH_UNAVAILABLE_MESSAGE}
-          </AlertDescription>
+          <AlertDescription className="text-amber-900">{limitNotice}</AlertDescription>
         </Alert>
       )}
+
+      {result?.warnings?.map((w, i) => (
+        <Alert key={i} className="my-3 border-amber-200 bg-amber-50 text-amber-900">
+          <AlertDescription className="text-amber-900">{w}</AlertDescription>
+        </Alert>
+      ))}
 
       {result?.source === "mock" && (
         <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
@@ -481,6 +594,11 @@ export function RouteSearchApp() {
         >
           <CardContent className="px-4">
             <div>
+              {route.mode && (
+                <Badge variant="outline" className="mr-1.5">
+                  {MODE_LABELS[route.mode]}
+                </Badge>
+              )}
               {idx === 0 && sortMode === "recommend" && (
                 <Badge className="mr-1.5 bg-blue-600">総合おすすめ</Badge>
               )}
@@ -513,7 +631,18 @@ export function RouteSearchApp() {
               {route.fareYen !== null ? `${route.fareYen.toLocaleString()}円` : "運賃不明"}
             </div>
             {route.segments.map((seg, i) =>
-              seg.kind === "transit" ? (
+              seg.kind === "flight" ? (
+                <div key={i} className={SEGMENT_CLASS}>
+                  ✈️ {seg.lineName ?? "飛行機"}
+                  {seg.flightNumber && ` ${seg.flightNumber}`}：{seg.departureStop}{" "}
+                  {formatHm(seg.departureTime)}発 → {seg.arrivalStop} {formatHm(seg.arrivalTime)}着
+                </div>
+              ) : seg.kind === "drive" ? (
+                <div key={i} className={SEGMENT_CLASS}>
+                  🚗 運転 {formatDurationSecondsJa(seg.durationSeconds)}
+                  {typeof seg.distanceMeters === "number" && `（${seg.distanceMeters}m）`}
+                </div>
+              ) : seg.kind === "transit" ? (
                 <div key={i} className={SEGMENT_CLASS}>
                   🚃 {seg.lineName ?? "電車"}：{seg.departureStop} {formatHm(seg.departureTime)}発 →{" "}
                   {seg.arrivalStop} {formatHm(seg.arrivalTime)}着
@@ -568,7 +697,12 @@ export function RouteSearchApp() {
                     setOriginMode("gps");
                   }
                   void runSearch(
-                    { origin: h.origin, destination: h.destination, offsetMinutes: h.offsetMinutes },
+                    {
+                      origin: h.origin,
+                      destination: h.destination,
+                      offsetMinutes: h.offsetMinutes,
+                      modes: selectedModes(),
+                    },
                     h.originLabel,
                     h.sortMode,
                     mockMode,

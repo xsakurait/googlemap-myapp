@@ -9,6 +9,7 @@ const ALL_CODES: ApiErrorCode[] = [
   "NOT_FOUND",
   "INVALID_PARAMS",
   "LIMIT_REACHED",
+  "SERPAPI_KEY_NOT_SET",
 ];
 
 describe("ERROR_MESSAGES", () => {

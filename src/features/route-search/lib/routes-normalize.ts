@@ -1,4 +1,4 @@
-import type { NormalizedRoute, RouteSegment } from "./types";
+import type { NormalizedRoute, RouteSegment, TransportMode } from "./types";
 import { parseDurationSeconds } from "./time";
 
 /** Google Routes API 応答のうち本アプリが使う部分の型（ゆるい定義） */
@@ -73,8 +73,8 @@ function segmentFromStep(step: GoogleStep): RouteSegment {
   return { kind: "walk", durationSeconds, distanceMeters: step.distanceMeters };
 }
 
-/** Google応答JSONを NormalizedRoute[] に変換する */
-export function normalizeRoutes(json: unknown): NormalizedRoute[] {
+/** Google応答JSONを NormalizedRoute[] に変換する（mode を渡すと候補へ移動手段を付与する） */
+export function normalizeRoutes(json: unknown, mode?: TransportMode): NormalizedRoute[] {
   if (!json || typeof json !== "object") return [];
   const routes = (json as { routes?: GoogleRoute[] }).routes;
   if (!Array.isArray(routes)) return [];
@@ -98,7 +98,14 @@ export function normalizeRoutes(json: unknown): NormalizedRoute[] {
         lastTransit?.transitDetails?.stopDetails?.arrivalTime ??
         null,
       transfers: Math.max(0, transitCount - 1),
-      segments: steps.map(segmentFromStep),
+      segments: steps.map((step) => {
+        const segment = segmentFromStep(step);
+        if (mode === "drive" && segment.kind === "transit") {
+          return { ...segment, kind: "drive" as const };
+        }
+        return segment;
+      }),
+      mode,
     };
   });
 }

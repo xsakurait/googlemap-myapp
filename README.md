@@ -1,6 +1,27 @@
 # 電車ルート検索アプリ（Next.js）
 
-現在地（GPS）から目的地まで、今から乗れる次の便を「最安・最短・乗り換え最少」の総合おすすめ順で表示する個人用 Web アプリです。Google Routes API（TRANSIT）のみを使い、無料枠（Essentials SKU：月 10,000 件）の範囲内で動くよう設計しています。
+現在地（GPS）から目的地まで、今から乗れる次の便を「最安・最短・乗り換え最少」の総合おすすめ順で表示する個人用 Web アプリです。移動手段はチェックボックスで選べます（電車・バス／飛行機／車／徒歩）。電車・バスと飛行機は SerpApi、車と徒歩は Google Routes API から取得し、どちらも無料枠の範囲内で動くよう設計しています。
+
+## 利用にあたって（API キーの設定が必要です）
+
+このアプリは配布用のため、**検索機能を使うには、利用する方ご自身の API キーを設定する必要があります**。キーは PC 上の `.env.local` に設定します（設定手順は「セットアップ」）。
+
+- 電車・バス／飛行機の検索: SerpApi の API キー（`SERPAPI_API_KEY`）。無料プランは月 250 件まで
+- 車／徒歩の検索: Google Routes API のキー（`GOOGLE_MAPS_API_KEY`）。無料枠は月 10,000 件まで
+- どちらのキーも未設定の場合は、モックデータでの動作確認のみ利用できます
+
+## 追加で登録が必要な API 一覧
+
+検索機能を使うには、次の API の登録とキー取得が必要です（配布物にはキーは含まれません）。
+
+| API | 用途 | 登録 | 無料枠 | キーの入手先 | 環境変数 |
+| --- | --- | --- | --- | --- | --- |
+| SerpApi | 電車・バス（Google Maps Directions）と飛行機（Google Flights）の検索 | 必要（無料登録、カード不要） | 月 250 件（成功した検索のみカウント） | serpapi.com で登録し、ダッシュボードで確認 | `SERPAPI_API_KEY` |
+| Google Routes API | 車・徒歩の検索 | 必要（Google Cloud のプロジェクト作成と請求先アカウントの紐付け） | 月 10,000 件（Essentials） | Google Cloud Console で Routes API を有効化して発行 | `GOOGLE_MAPS_API_KEY` |
+| Supabase（任意） | 検索履歴・設定・利用カウンターの保存 | 任意 | Free プラン | supabase.com でプロジェクトを作成 | `NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+
+- 電車・バスのみ使う場合は SerpApi だけ、車・徒歩も使う場合は Google Routes API も、というように使う分だけ設定すれば動きます。
+- 現時点で使っている外部 API は上記のみです。ODPT や Aviationstack は未使用です（将来の拡張候補として要件定義書 §10 に記載）。
 
 ## 作ろうとした理由
 
@@ -9,9 +30,9 @@
 
 ## 現在の制約（2026-11-18 時点）
 
-- 実データ検索は利用できません。Google Routes API の TRANSIT が日本の公共交通データを返さないことを、発行した実キーで確認しました（DRIVE と WALK は正常に応答）。このため、画面上にも実データ検索が利用できない旨を表示しています。
-- モックデータでの検索と表示は利用できます。
-- 実データの取得元（SerpApi、ODPT／GTFS など）への切り替えは今後の対応です。
+- Google Routes API の TRANSIT は日本の公共交通データを返さないことを、発行した実キーで確認しました（DRIVE と WALK は正常に応答）。そのため電車・バスの検索は Google からではなく SerpApi（Google Maps の経路検索）から取得する構成にしています。
+- 飛行機の検索も SerpApi（Google Flights）から取得します。空港が特定できない地名では飛行機は検索できません。
+- 検索には API キーの設定が必要です（「利用にあたって」参照）。キー未設定の場合はモックデータでの動作確認のみ利用できます。
 
 ## 技術環境
 
@@ -110,12 +131,13 @@ flowchart LR
 
 ## セットアップ
 
-1. Google Cloud でプロジェクト作成 → 課金アカウント紐付け → Routes API 有効化 → API キー発行（API 制限＝Routes API のみ）＋クォータ上限設定。
-2. `.env.sample` をコピーして `.env.local` を作り、`GOOGLE_MAPS_API_KEY` にキーを入れる（キーはチャット等に貼らない）。`.env.local` は gitignore 済みで Git には上がらない。
-3. 起動は次のどちらか。
+1. 車／徒歩を使う場合: Google Cloud でプロジェクト作成 → 課金アカウント紐付け → Routes API 有効化 → API キー発行（API 制限＝Routes API のみ）＋クォータ上限設定。
+2. 電車・バス／飛行機を使う場合: SerpApi（serpapi.com）で無料登録し、API キーを取得する（無料プランは月 250 件、カード登録不要）。
+3. `.env.sample` をコピーして `.env.local` を作り、使うキー（`GOOGLE_MAPS_API_KEY`、`SERPAPI_API_KEY`）を入れる（キーはチャット等に貼らない）。`.env.local` は gitignore 済みで Git には上がらない。
+4. 起動は次のどちらか。
    - ローカル：`start.bat` をダブルクリック → ブラウザで `http://localhost:3000` を開く（手動の場合：`npm install` → `npm run build` → `npm run start`）
    - Docker：`docker compose up --build` → `http://localhost:3000`
-4. キーなしでも「モックデータで試す」で画面確認ができる。
+5. キーなしでも「モックデータで試す」で画面確認ができる。
 
 ## Supabase のセットアップ（任意）
 

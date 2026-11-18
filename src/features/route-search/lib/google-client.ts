@@ -46,7 +46,19 @@ export function parseSearchParams(body: unknown): SearchParams {
   if (!origin) {
     throw new ApiError("INVALID_PARAMS", "出発地（緯度経度または住所）が必要です", 400);
   }
-  return { origin, destination, offsetMinutes };
+  const params: SearchParams = { origin, destination, offsetMinutes };
+  if (b.modes !== undefined) {
+    const valid = ["transit", "flight", "drive", "walk"];
+    if (!Array.isArray(b.modes)) {
+      throw new ApiError("INVALID_PARAMS", "移動手段の指定が不正です", 400);
+    }
+    const modes = [...new Set(b.modes.filter((m) => typeof m === "string" && valid.includes(m)))];
+    if (modes.length === 0) {
+      throw new ApiError("INVALID_PARAMS", "移動手段を1つ以上選んでください", 400);
+    }
+    params.modes = modes as SearchParams["modes"];
+  }
+  return params;
 }
 
 function parseOrigin(raw: unknown): OriginInput | null {
@@ -87,11 +99,15 @@ function waypoint(origin: OriginInput): Record<string, unknown> {
 }
 
 /** Google Routes API へ送るリクエストボディを組み立てる */
-export function buildRequestBody(params: SearchParams, now: Date = new Date()): Record<string, unknown> {
+export function buildRequestBody(
+  params: SearchParams,
+  now: Date = new Date(),
+  travelMode: "TRANSIT" | "DRIVE" | "WALK" = "TRANSIT",
+): Record<string, unknown> {
   return {
     origin: waypoint(params.origin),
     destination: { address: params.destination },
-    travelMode: "TRANSIT",
+    travelMode,
     computeAlternativeRoutes: true,
     languageCode: "ja-JP",
     units: "METRIC",
@@ -103,6 +119,7 @@ export interface FetchRoutesOptions {
   apiKey?: string;
   fetchFn?: typeof fetch;
   now?: Date;
+  travelMode?: "TRANSIT" | "DRIVE" | "WALK";
 }
 
 /**
@@ -133,7 +150,7 @@ export async function fetchRoutes(
         "X-Goog-Api-Key": apiKey,
         "X-Goog-FieldMask": FIELD_MASK,
       },
-      body: JSON.stringify(buildRequestBody(params, opts.now)),
+      body: JSON.stringify(buildRequestBody(params, opts.now, opts.travelMode ?? "TRANSIT")),
     });
   } catch {
     throw new ApiError("UPSTREAM_ERROR", "Google Routes API への接続に失敗しました", 502);
@@ -142,7 +159,9 @@ export async function fetchRoutes(
     throw new ApiError("UPSTREAM_ERROR", `Google Routes API がエラーを返しました（HTTP ${res.status}）`, 502);
   }
   const json: unknown = await res.json();
-  const routes = normalizeRoutes(json);
+  const mode =
+    opts.travelMode === "DRIVE" ? "drive" : opts.travelMode === "WALK" ? "walk" : "transit";
+  const routes = normalizeRoutes(json, mode);
   if (routes.length === 0) {
     throw new ApiError("NOT_FOUND", "条件に合うルートが見つかりませんでした", 404);
   }
