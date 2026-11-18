@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { monthKey, loadUsage, serializeUsage, checkLimit, increment, type UsageState } from "@/features/route-search/lib/usage";
 
 describe("monthKey", () => {
@@ -54,5 +54,21 @@ describe("increment", () => {
   it("UT-051: 月が変わっていれば新月の1件目にする", () => {
     const now = new Date("2026-11-17T01:00:00Z");
     expect(increment({ month: "2026-10", count: 9999 }, now)).toEqual({ month: "2026-11", count: 1 });
+  });
+});
+
+describe("monthKey フォールバック", () => {
+  it("UT-052: 年月パートが取得できない場合は 0000-01 を返す", () => {
+    class FakeFormat {
+      formatToParts(): Intl.DateTimeFormatPart[] {
+        return [];
+      }
+    }
+    vi.stubGlobal("Intl", { ...Intl, DateTimeFormat: FakeFormat });
+    try {
+      expect(monthKey(new Date("2026-11-18T00:00:00Z"))).toBe("0000-01");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
