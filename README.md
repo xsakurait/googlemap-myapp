@@ -18,7 +18,7 @@
 | 区分 | 内容 |
 | --- | --- |
 | 言語・基盤 | TypeScript、Next.js 15（App Router）、React 19 |
-| デザイン | Tailwind CSS v4（ユーティリティファースト） |
+| デザイン | Tailwind CSS v4 + shadcn/ui（Radix ベースの UI コンポーネント） |
 | API | Hono（Next.js の Route Handler 上で /api 配下を担当） |
 | 実行環境 | Node.js 20、Docker（Next.js の standalone 出力） |
 | 外部サービス | Google Routes API（TRANSIT）、Supabase（PostgreSQL、匿名認証、RLS） |
