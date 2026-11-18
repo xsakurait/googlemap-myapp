@@ -45,3 +45,10 @@ describe("cacheKeyFor / stableStringify", () => {
     expect(stableStringify(5)).toBe("5");
   });
 });
+
+describe("stableStringify 追加", () => {
+  it("UT-067: undefined は 'null' に文字列化される", () => {
+    expect(stableStringify(undefined)).toBe("null");
+    expect(cacheKeyFor({ a: undefined })).toBe("{\"a\":null}");
+  });
+});
