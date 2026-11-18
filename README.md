@@ -37,7 +37,7 @@
 ```text
 npm run typecheck       # 型チェック
 npm run test            # 単体テスト
-npm run test:coverage   # カバレッジ付き（閾値：lines/statements/functions 80%、branches 70%）
+npm run test:coverage   # カバレッジ付き（閾値：全指標 100%）
 ```
 
 カバレッジ対象は `src/features/*/lib/**`、`src/lib/**`、`src/app/api/**`（画面コンポーネントは対象外）。
