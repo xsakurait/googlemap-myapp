@@ -49,7 +49,8 @@ for (const f of files) {
     if (!pascal.test(m[1])) violations.push(`命名: 型・クラス名 ${m[1]}（${f}）は PascalCase ではありません`);
   }
   for (const m of text.matchAll(/export\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)/g)) {
-    if (!camel.test(m[1]) && !httpHandlers.has(m[1])) {
+    // .tsx の PascalCase は React コンポーネントとして許可する
+    if (!camel.test(m[1]) && !httpHandlers.has(m[1]) && !(f.endsWith(".tsx") && pascal.test(m[1]))) {
       violations.push(`命名: 関数名 ${m[1]}（${f}）は camelCase ではありません`);
     }
   }
