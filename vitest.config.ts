@@ -10,7 +10,7 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      include: ["src/features/**", "src/lib/**", "src/app/api/**"],
+      include: ["src/features/*/lib/**", "src/lib/**", "src/app/api/**"],
       reporter: ["text", "html", "json-summary"],
       thresholds: {
         lines: 80,

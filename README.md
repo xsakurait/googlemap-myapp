@@ -40,7 +40,7 @@ npm run test            # 単体テスト
 npm run test:coverage   # カバレッジ付き（閾値：lines/statements/functions 80%、branches 70%）
 ```
 
-カバレッジ対象は `src/lib/**` と `src/app/api/**`。
+カバレッジ対象は `src/features/*/lib/**`、`src/lib/**`、`src/app/api/**`（画面コンポーネントは対象外）。
 
 ## CI（GitHub Actions）
 
