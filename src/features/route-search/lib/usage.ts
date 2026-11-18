@@ -8,6 +8,9 @@ export interface UsageState {
 
 export type LimitStatus = "ok" | "warn" | "stop";
 
+/** 無料枠ガードの初期値（警告・停止件数。定義はここに一元化する） */
+export const DEFAULT_USAGE_LIMITS = { warnAt: 8000, stopAt: 10000 };
+
 /** Asia/Tokyo 基準の YYYY-MM を返す */
 export function monthKey(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-US", {

@@ -50,7 +50,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!apiKey) {
     return errorResponse(
       "API_KEY_NOT_SET",
-      "APIキーが未設定です。PC上の .env.local に GOOGLE_MAPS_API_KEY を設定してください（手順は docs/06_セットアップ手順.md）",
+      "APIキーが未設定です。PC上の .env.local に GOOGLE_MAPS_API_KEY を設定してください（手順は README のセットアップ）",
       503,
     );
   }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
+  ApiErrorCode,
   NormalizedRoute,
   OriginInput,
   RoutesApiResponseBody,
@@ -9,6 +10,7 @@ import type {
   SortMode,
 } from "@/features/route-search/lib/types";
 import { sortRoutes, computeBadges } from "@/features/route-search/lib/ranking";
+import { ERROR_MESSAGES } from "@/features/route-search/lib/error-messages";
 import { formatHm, formatDurationSecondsJa } from "@/features/route-search/lib/time";
 import {
   loadUsage,
@@ -16,6 +18,7 @@ import {
   checkLimit,
   increment,
   type UsageState,
+  DEFAULT_USAGE_LIMITS,
 } from "@/features/route-search/lib/usage";
 
 const LS_ORIGIN = "tra.originText";
@@ -37,15 +40,6 @@ interface Settings {
   stopAt: number;
 }
 
-const ERROR_MESSAGES: Record<string, string> = {
-  API_KEY_NOT_SET:
-    "APIキーが未設定です。PC上の .env.local に GOOGLE_MAPS_API_KEY を設定してください（手順は docs/06_セットアップ手順.md）。下の「モックデータで試す」で画面の確認はできます。",
-  NOT_FOUND: "条件に合うルートが見つかりませんでした。出発地・目的地を確認してください。",
-  UPSTREAM_ERROR: "Google Routes API でエラーが発生しました。しばらく待って再試行してください。",
-  INVALID_PARAMS: "入力内容に不備があります。目的地と出発地を確認してください。",
-  LIMIT_REACHED: "今月の無料枠ガード（上限）に達したため検索を停止しています。",
-};
-
 type GpsState =
   | { status: "idle" }
   | { status: "loading" }
@@ -66,7 +60,7 @@ export function RouteSearchApp() {
   const [errorDetail, setErrorDetail] = useState<string>("");
   const [result, setResult] = useState<RoutesApiResponseBody | null>(null);
   const [usage, setUsage] = useState<UsageState>({ month: "", count: 0 });
-  const [settings, setSettings] = useState<Settings>({ warnAt: 8000, stopAt: 10000 });
+  const [settings, setSettings] = useState<Settings>(DEFAULT_USAGE_LIMITS);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const usageRef = useRef(usage);
   usageRef.current = usage;
@@ -348,12 +342,12 @@ export function RouteSearchApp() {
 
       {errorCode && (
         <div className="error">
-          <strong>{ERROR_MESSAGES[errorCode] ?? "エラーが発生しました"}</strong>
+          <strong>{ERROR_MESSAGES[errorCode as ApiErrorCode] ?? "エラーが発生しました"}</strong>
           {errorDetail && <div>{errorDetail}</div>}
           {errorCode === "API_KEY_NOT_SET" && (
             <div>
               手順：Google Cloudでプロジェクト作成 → 課金紐付け → Routes API有効化 → APIキー発行 →
-              PC上の .env.local に GOOGLE_MAPS_API_KEY を設定 → アプリ再起動（docs/06_セットアップ手順.md）
+              PC上の .env.local に GOOGLE_MAPS_API_KEY を設定 → アプリ再起動（手順は README のセットアップ）
             </div>
           )}
         </div>
