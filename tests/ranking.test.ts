@@ -131,3 +131,94 @@ describe("computeBadges", () => {
     expect(computeBadges([]).fastest.size).toBe(0);
   });
 });
+
+describe("sortRoutes 同点時のタイブレーク", () => {
+  it("UT-083: recommend でスコア同点なら所要時間の短い順", () => {
+    const sorted = sortRoutes(
+      [
+        route({ id: "a", fareYen: 500, durationSeconds: 200, transfers: 0 }),
+        route({ id: "b", fareYen: 500, durationSeconds: 100, transfers: 1 }),
+      ],
+      "recommend",
+    );
+    expect(sorted.map((r) => r.id)).toEqual(["b", "a"]);
+  });
+  it("UT-084: recommend で全指標が同値なら入力順を保つ（最終タイブレーク到達）", () => {
+    const sorted = sortRoutes(
+      [
+        route({ id: "a", fareYen: 500, durationSeconds: 100, transfers: 1 }),
+        route({ id: "b", fareYen: 500, durationSeconds: 100, transfers: 1 }),
+      ],
+      "recommend",
+    );
+    expect(sorted.map((r) => r.id)).toEqual(["a", "b"]);
+  });
+  it("UT-085: transfers で乗り換え・運賃とも同点なら所要時間の短い順", () => {
+    const sorted = sortRoutes(
+      [
+        route({ id: "a", fareYen: null, durationSeconds: 300, transfers: 1 }),
+        route({ id: "b", fareYen: null, durationSeconds: 100, transfers: 1 }),
+      ],
+      "transfers",
+    );
+    expect(sorted.map((r) => r.id)).toEqual(["b", "a"]);
+  });
+  it("UT-086: duration で到着時刻・運賃とも同点なら所要時間の短い順", () => {
+    const sorted = sortRoutes(
+      [
+        route({ id: "a", fareYen: 500, durationSeconds: 300, arrivalTime: "2026-11-17T01:30:00Z" }),
+        route({ id: "b", fareYen: 500, durationSeconds: 100, arrivalTime: "2026-11-17T01:30:00Z" }),
+        route({ id: "c", fareYen: 300, durationSeconds: 200, arrivalTime: "2026-11-17T01:30:00Z" }),
+      ],
+      "duration",
+    );
+    expect(sorted.map((r) => r.id)).toEqual(["c", "b", "a"]);
+  });
+});
+
+describe("sortRoutes 運賃不明の位置と到着時刻なし", () => {
+  it("UT-087: recommend で運賃不明が先頭にあっても確定組が前に来る", () => {
+    const sorted = sortRoutes(
+      [
+        route({ id: "u", fareYen: null, durationSeconds: 100, transfers: 0 }),
+        route({ id: "k", fareYen: 500, durationSeconds: 900, transfers: 2 }),
+      ],
+      "recommend",
+    );
+    expect(sorted.map((r) => r.id)).toEqual(["k", "u"]);
+  });
+  it("UT-088: fare / transfers で運賃確定と不明が混在しても不明は最後", () => {
+    const list = [
+      route({ id: "a", fareYen: 300 }),
+      route({ id: "u", fareYen: null }),
+      route({ id: "b", fareYen: 200 }),
+    ];
+    expect(sortRoutes(list, "fare").map((r) => r.id)).toEqual(["b", "a", "u"]);
+    expect(sortRoutes(list, "transfers").map((r) => r.id)).toEqual(["b", "a", "u"]);
+  });
+  it("UT-089: duration で到着時刻なしは最後に回り、同士は運賃順", () => {
+    const sorted = sortRoutes(
+      [
+        route({ id: "a", fareYen: 500, arrivalTime: null }),
+        route({ id: "b", fareYen: 900, arrivalTime: "2026-11-17T01:30:00Z" }),
+        route({ id: "c", fareYen: 300, arrivalTime: null }),
+      ],
+      "duration",
+    );
+    expect(sorted.map((r) => r.id)).toEqual(["b", "c", "a"]);
+  });
+});
+
+describe("sortRoutes recommend の運賃不明の挟み込み", () => {
+  it("UT-090: 運賃不明が確定組の間にあっても最後に回る", () => {
+    const sorted = sortRoutes(
+      [
+        route({ id: "k1", fareYen: 500, durationSeconds: 900, transfers: 2 }),
+        route({ id: "u", fareYen: null, durationSeconds: 100, transfers: 0 }),
+        route({ id: "k2", fareYen: 300, durationSeconds: 900, transfers: 2 }),
+      ],
+      "recommend",
+    );
+    expect(sorted.map((r) => r.id)).toEqual(["k2", "k1", "u"]);
+  });
+});
