@@ -1,9 +1,9 @@
-import { ApiError, type NormalizedRoute } from "@/lib/types";
-import { parseSearchParams, fetchRoutes } from "@/lib/google-client";
-import { normalizeRoutes } from "@/lib/routes-normalize";
-import { MOCK_GOOGLE_RESPONSE } from "@/lib/mock-data";
+import { ApiError, type NormalizedRoute } from "@/features/route-search/lib/types";
+import { parseSearchParams, fetchRoutes } from "@/features/route-search/lib/google-client";
+import { normalizeRoutes } from "@/features/route-search/lib/routes-normalize";
+import { MOCK_GOOGLE_RESPONSE } from "@/features/route-search/lib/mock-data";
 import { createCache, cacheKeyFor } from "@/lib/cache";
-import { computeDepartureIso } from "@/lib/time";
+import { computeDepartureIso } from "@/features/route-search/lib/time";
 
 /** サーバー側キャッシュ（同一条件60秒）。プロセス内メモリのみ */
 const routeCache = createCache<NormalizedRoute[]>(60_000);

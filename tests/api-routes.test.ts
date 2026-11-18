@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "@/app/api/routes/route";
-import { MOCK_GOOGLE_RESPONSE } from "@/lib/mock-data";
+import { MOCK_GOOGLE_RESPONSE } from "@/features/route-search/lib/mock-data";
 
 function makeRequest(body: unknown): Request {
   return new Request("http://localhost:3000/api/routes", {

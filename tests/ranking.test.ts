@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { WEIGHTS, scoreRoutes, sortRoutes, computeBadges } from "@/lib/ranking";
-import type { NormalizedRoute } from "@/lib/types";
+import { WEIGHTS, scoreRoutes, sortRoutes, computeBadges } from "@/features/route-search/lib/ranking";
+import type { NormalizedRoute } from "@/features/route-search/lib/types";
 
 function route(partial: Partial<NormalizedRoute> & { id: string }): NormalizedRoute {
   return {

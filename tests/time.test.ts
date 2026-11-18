@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeDepartureIso, parseDurationSeconds, formatHm, formatDurationJa } from "@/lib/time";
+import { computeDepartureIso, parseDurationSeconds, formatHm, formatDurationJa } from "@/features/route-search/lib/time";
 
 describe("computeDepartureIso", () => {
   it("UT-001: オフセット0分は基準時刻そのものを返す", () => {

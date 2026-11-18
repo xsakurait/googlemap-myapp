@@ -5,9 +5,9 @@ import {
   buildRequestBody,
   parseSearchParams,
   fetchRoutes,
-} from "@/lib/google-client";
-import { ApiError, type SearchParams } from "@/lib/types";
-import { MOCK_GOOGLE_RESPONSE } from "@/lib/mock-data";
+} from "@/features/route-search/lib/google-client";
+import { ApiError, type SearchParams } from "@/features/route-search/lib/types";
+import { MOCK_GOOGLE_RESPONSE } from "@/features/route-search/lib/mock-data";
 
 const latLngParams: SearchParams = {
   origin: { type: "latLng", latitude: 35.6284, longitude: 139.7386 },

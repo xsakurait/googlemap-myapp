@@ -7,16 +7,16 @@ import type {
   RoutesApiResponseBody,
   SearchParams,
   SortMode,
-} from "@/lib/types";
-import { sortRoutes, computeBadges } from "@/lib/ranking";
-import { formatHm, formatDurationSecondsJa } from "@/lib/time";
+} from "@/features/route-search/lib/types";
+import { sortRoutes, computeBadges } from "@/features/route-search/lib/ranking";
+import { formatHm, formatDurationSecondsJa } from "@/features/route-search/lib/time";
 import {
   loadUsage,
   serializeUsage,
   checkLimit,
   increment,
   type UsageState,
-} from "@/lib/usage";
+} from "@/features/route-search/lib/usage";
 
 const LS_ORIGIN = "tra.originText";
 const LS_USAGE = "tra.usage";

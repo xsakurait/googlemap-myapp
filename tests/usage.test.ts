@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { monthKey, loadUsage, serializeUsage, checkLimit, increment, type UsageState } from "@/lib/usage";
+import { monthKey, loadUsage, serializeUsage, checkLimit, increment, type UsageState } from "@/features/route-search/lib/usage";
 
 describe("monthKey", () => {
   it("UT-040: JST基準のYYYY-MMを返す", () => {

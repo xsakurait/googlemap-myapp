@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { normalizeRoutes } from "@/lib/routes-normalize";
-import { MOCK_GOOGLE_RESPONSE } from "@/lib/mock-data";
+import { normalizeRoutes } from "@/features/route-search/lib/routes-normalize";
+import { MOCK_GOOGLE_RESPONSE } from "@/features/route-search/lib/mock-data";
 
 describe("normalizeRoutes（モックフィクスチャ）", () => {
   const routes = normalizeRoutes(MOCK_GOOGLE_RESPONSE);
