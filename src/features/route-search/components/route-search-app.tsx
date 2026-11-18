@@ -29,6 +29,21 @@ import {
   incrementUsage as incrementRemoteUsage,
 } from "@/features/route-search/lib/user-data";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const LS_ORIGIN = "tra.originText";
 const LS_USAGE = "tra.usage";
@@ -60,15 +75,7 @@ type GpsState =
 const REAL_SEARCH_UNAVAILABLE_MESSAGE =
   "実データ検索は現在利用できません。Google Routes API が日本の公共交通（電車）のデータを返さないためです（実キーで確認済み）。モックデータでの動作確認は引き続き可能です。";
 
-const CARD_CLASS = "my-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm";
-const CARD_TOP_CLASS = "my-3 rounded-xl border-2 border-blue-600 bg-white p-4 shadow-sm";
-const LABEL_CLASS = "mb-1 mt-2.5 block text-[13px] font-semibold";
-const INPUT_CLASS = "w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-base";
-const NOTE_CLASS = "text-xs text-slate-500";
-const BADGE_CLASS = "mr-1.5 inline-block rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-bold text-white";
-const BADGE_SUB_CLASS = "mr-1.5 inline-block rounded-full bg-slate-500 px-2.5 py-0.5 text-xs font-bold text-white";
 const SEGMENT_CLASS = "border-t border-dashed border-slate-200 py-1.5 text-sm";
-const LINK_CLASS = "py-1 text-left text-sm text-blue-600 hover:underline";
 
 /** 検索画面の対話部分（クライアントコンポーネント） */
 export function RouteSearchApp() {
@@ -310,230 +317,279 @@ export function RouteSearchApp() {
 
   return (
     <>
+      <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
+        <AlertDescription className="text-amber-900">
+          お知らせ：{REAL_SEARCH_UNAVAILABLE_MESSAGE}
+        </AlertDescription>
+      </Alert>
 
-      <div className="my-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-        お知らせ：{REAL_SEARCH_UNAVAILABLE_MESSAGE}
-      </div>
-
-      <div className={CARD_CLASS}>
-        <label className={LABEL_CLASS}>出発地</label>
-        <div className="flex gap-2.5">
-          <div className="flex-1">
-            <button type="button" className={LINK_CLASS} onClick={requestGps}>
+      <Card className="my-3 py-4">
+        <CardContent className="space-y-1 px-4">
+          <Label className="text-[13px]">出発地</Label>
+          <div>
+            <Button type="button" variant="link" className="h-auto px-0" onClick={requestGps}>
               📍 現在地から（GPS）
-            </button>
-            {gps.status === "loading" && <div className={NOTE_CLASS}>取得中…</div>}
+            </Button>
+            {gps.status === "loading" && <p className="text-xs text-muted-foreground">取得中…</p>}
             {gps.status === "ok" && (
-              <div className={NOTE_CLASS}>
+              <p className="text-xs text-muted-foreground">
                 現在地を取得済み（精度 ±{gps.accuracy}m）
                 {gps.accuracy > 1000 && " ※精度が低いため、駅がずれる可能性があります"}
-              </div>
+              </p>
             )}
-            {gps.status === "denied" && <div className={NOTE_CLASS}>{gps.message}</div>}
+            {gps.status === "denied" && (
+              <p className="text-xs text-muted-foreground">{gps.message}</p>
+            )}
           </div>
-        </div>
-        <label className={LABEL_CLASS}>
-          <input
-            type="radio"
-            name="originMode"
-            checked={originMode === "gps"}
-            onChange={() => setOriginMode("gps")}
-            className="mr-1.5 w-4 shrink-0"
-          />
-          現在地（GPS）を使う
-        </label>
-        <label className={LABEL_CLASS}>
-          <input
-            type="radio"
-            name="originMode"
-            checked={originMode === "manual"}
-            onChange={() => setOriginMode("manual")}
-            className="mr-1.5 w-4 shrink-0"
-          />
-          手入力する
-        </label>
-        {originMode === "manual" && (
-          <input
-            className={INPUT_CLASS}
-            type="text"
-            value={originText}
-            onChange={(e) => setOriginText(e.target.value)}
-            placeholder="駅名または住所（例：品川駅）"
-          />
-        )}
-
-        <label className={LABEL_CLASS} htmlFor="destination">目的地（必須）</label>
-        <input
-          className={INPUT_CLASS}
-          id="destination"
-          type="text"
-          value={destination}
-          onChange={(e) => setDestination(e.target.value)}
-          placeholder="駅名または住所（例：新宿駅）"
-        />
-
-        <div className="flex gap-2.5">
-          <div className="flex-1">
-            <label className={LABEL_CLASS} htmlFor="offset">出発（今から何分後）</label>
-            <input
-              className={INPUT_CLASS}
-              id="offset"
-              type="number"
-              min={0}
-              max={180}
-              value={offsetMinutes}
-              onChange={(e) => setOffsetMinutes(Math.max(0, Math.min(180, Number(e.target.value) || 0)))}
+          <RadioGroup
+            value={originMode}
+            onValueChange={(v) => setOriginMode(v as "gps" | "manual")}
+            className="gap-2 pt-1"
+          >
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="gps" id="origin-gps" />
+              <Label htmlFor="origin-gps">現在地（GPS）を使う</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="manual" id="origin-manual" />
+              <Label htmlFor="origin-manual">手入力する</Label>
+            </div>
+          </RadioGroup>
+          {originMode === "manual" && (
+            <Input
+              type="text"
+              value={originText}
+              onChange={(e) => setOriginText(e.target.value)}
+              placeholder="駅名または住所（例：品川駅）"
             />
-          </div>
-          <div className="flex-1">
-            <label className={LABEL_CLASS} htmlFor="sort">並び替え</label>
-            <select
-              className={INPUT_CLASS}
-              id="sort"
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value as SortMode)}
-            >
-              <option value="recommend">総合おすすめ</option>
-              <option value="fare">安さ優先</option>
-              <option value="transfers">乗り換え少なさ優先</option>
-              <option value="duration">早さ優先</option>
-            </select>
-          </div>
-        </div>
+          )}
 
-        <label className={LABEL_CLASS}>
-          <input
-            type="checkbox"
-            checked={mockMode}
-            onChange={(e) => setMockMode(e.target.checked)}
-            className="mr-1.5 w-4 shrink-0"
+          <Label htmlFor="destination" className="pt-2 text-[13px]">
+            目的地（必須）
+          </Label>
+          <Input
+            id="destination"
+            type="text"
+            value={destination}
+            onChange={(e) => setDestination(e.target.value)}
+            placeholder="駅名または住所（例：新宿駅）"
           />
-          モックデータで試す（APIキー不要・カウンター対象外）
-        </label>
 
-        <button type="button" className="mt-3.5 w-full rounded-lg bg-blue-600 py-3 text-[17px] font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300" onClick={handleSearch} disabled={searching || stopped}>
-          {searching ? "検索中…" : stopped ? "今月の上限に達しました" : "検索する"}
-        </button>
+          <div className="flex gap-2.5">
+            <div className="flex-1">
+              <Label htmlFor="offset" className="pt-2 text-[13px]">
+                出発（今から何分後）
+              </Label>
+              <Input
+                id="offset"
+                type="number"
+                min={0}
+                max={180}
+                value={offsetMinutes}
+                onChange={(e) =>
+                  setOffsetMinutes(Math.max(0, Math.min(180, Number(e.target.value) || 0)))
+                }
+              />
+            </div>
+            <div className="flex-1">
+              <Label htmlFor="sort" className="pt-2 text-[13px]">
+                並び替え
+              </Label>
+              <Select value={sortMode} onValueChange={(v) => setSortMode(v as SortMode)}>
+                <SelectTrigger id="sort" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recommend">総合おすすめ</SelectItem>
+                  <SelectItem value="fare">安さ優先</SelectItem>
+                  <SelectItem value="transfers">乗り換え少なさ優先</SelectItem>
+                  <SelectItem value="duration">早さ優先</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
-        <p className={NOTE_CLASS}>
-          今月のAPI利用：{usage.count} 件（警告 {settings.warnAt} 件／停止 {settings.stopAt} 件）
-          {limitStatus === "warn" && " ※無料枠の上限が近づいています"}
-          {limitStatus === "stop" && " ※上限に達したため実データ検索を停止中です"}
-        </p>
-      </div>
+          <div className="flex items-center gap-2 pt-2">
+            <Checkbox
+              id="mock"
+              checked={mockMode}
+              onCheckedChange={(v) => setMockMode(v === true)}
+            />
+            <Label htmlFor="mock">モックデータで試す（APIキー不要・カウンター対象外）</Label>
+          </div>
+
+          <Button
+            type="button"
+            size="lg"
+            className="mt-4 w-full bg-blue-600 text-[17px] font-bold hover:bg-blue-700"
+            onClick={handleSearch}
+            disabled={searching || stopped}
+          >
+            {searching ? "検索中…" : stopped ? "今月の上限に達しました" : "検索する"}
+          </Button>
+
+          <p className="pt-2 text-xs text-muted-foreground">
+            今月のAPI利用：{usage.count} 件（警告 {settings.warnAt} 件／停止 {settings.stopAt} 件）
+            {limitStatus === "warn" && " ※無料枠の上限が近づいています"}
+            {limitStatus === "stop" && " ※上限に達したため実データ検索を停止中です"}
+          </p>
+        </CardContent>
+      </Card>
 
       {errorCode && (
-        <div className="my-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-900">
-          <strong>{ERROR_MESSAGES[errorCode as ApiErrorCode] ?? "エラーが発生しました"}</strong>
-          {errorDetail && <div>{errorDetail}</div>}
+        <Alert variant="destructive" className="my-3">
+          <AlertTitle>
+            {ERROR_MESSAGES[errorCode as ApiErrorCode] ?? "エラーが発生しました"}
+          </AlertTitle>
+          {errorDetail && <AlertDescription>{errorDetail}</AlertDescription>}
           {errorCode === "API_KEY_NOT_SET" && (
-            <div>
+            <AlertDescription>
               手順：Google Cloudでプロジェクト作成 → 課金紐付け → Routes API有効化 → APIキー発行 →
               PC上の .env.local に GOOGLE_MAPS_API_KEY を設定 → アプリ再起動（手順は README のセットアップ）
-            </div>
+            </AlertDescription>
           )}
-        </div>
+        </Alert>
       )}
 
       {result && result.source === "google" && sortedRoutes.length === 0 && (
-        <div className="my-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-          {REAL_SEARCH_UNAVAILABLE_MESSAGE}
-        </div>
+        <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
+          <AlertDescription className="text-amber-900">
+            {REAL_SEARCH_UNAVAILABLE_MESSAGE}
+          </AlertDescription>
+        </Alert>
       )}
 
       {result?.source === "mock" && (
-        <div className="my-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">モックデータ表示中です（実データではありません）。</div>
+        <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
+          <AlertDescription className="text-amber-900">
+            モックデータ表示中です（実データではありません）。
+          </AlertDescription>
+        </Alert>
       )}
-      {result?.cached && <div className="my-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">キャッシュ結果を表示しています（API消費なし）。</div>}
+      {result?.cached && (
+        <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
+          <AlertDescription className="text-amber-900">
+            キャッシュ結果を表示しています（API消費なし）。
+          </AlertDescription>
+        </Alert>
+      )}
 
       {sortedRoutes.map((route, idx) => (
-        <div key={route.id} className={idx === 0 ? CARD_TOP_CLASS : CARD_CLASS}>
-          <div>
-            {idx === 0 && sortMode === "recommend" && <span className={BADGE_CLASS}>総合おすすめ</span>}
-            {badges.cheapest.has(route.id) && <span className={BADGE_SUB_CLASS}>最安</span>}
-            {badges.fastest.has(route.id) && <span className={BADGE_SUB_CLASS}>最短</span>}
-            {badges.fewestTransfers.has(route.id) && <span className={BADGE_SUB_CLASS}>乗り換え最少</span>}
-          </div>
-          <div>
-            <span className={idx === 0 ? "text-[28px] font-extrabold" : "text-xl font-bold"}>
-              {formatHm(route.departureTime)}
-            </span>
-            {" → "}
-            {formatHm(route.arrivalTime)}
-            {"　"}
-            {formatDurationSecondsJa(route.durationSeconds)}
-            {"　乗り換え"}
-            {route.transfers}回{"　"}
-            {route.fareYen !== null ? `${route.fareYen.toLocaleString()}円` : "運賃不明"}
-          </div>
-          {route.segments.map((seg, i) =>
-            seg.kind === "transit" ? (
-              <div key={i} className={SEGMENT_CLASS}>
-                🚃 {seg.lineName ?? "電車"}：{seg.departureStop} {formatHm(seg.departureTime)}発 →{" "}
-                {seg.arrivalStop} {formatHm(seg.arrivalTime)}着
-                {typeof seg.stopCount === "number" && `（${seg.stopCount}駅）`}
-              </div>
-            ) : (
-              <div key={i} className={SEGMENT_CLASS}>
-                🚶 徒歩 {formatDurationSecondsJa(seg.durationSeconds)}
-                {typeof seg.distanceMeters === "number" && `（${seg.distanceMeters}m）`}
-              </div>
-            ),
-          )}
-          <div>
-            <a className="text-sm text-blue-600 hover:underline" href={mapsLink(route)} target="_blank" rel="noreferrer">
-              Googleマップで開く
-            </a>
-          </div>
-        </div>
+        <Card
+          key={route.id}
+          className={idx === 0 ? "my-3 border-2 border-blue-600 py-4" : "my-3 py-4"}
+        >
+          <CardContent className="px-4">
+            <div>
+              {idx === 0 && sortMode === "recommend" && (
+                <Badge className="mr-1.5 bg-blue-600">総合おすすめ</Badge>
+              )}
+              {badges.cheapest.has(route.id) && (
+                <Badge variant="secondary" className="mr-1.5">
+                  最安
+                </Badge>
+              )}
+              {badges.fastest.has(route.id) && (
+                <Badge variant="secondary" className="mr-1.5">
+                  最短
+                </Badge>
+              )}
+              {badges.fewestTransfers.has(route.id) && (
+                <Badge variant="secondary" className="mr-1.5">
+                  乗り換え最少
+                </Badge>
+              )}
+            </div>
+            <div>
+              <span className={idx === 0 ? "text-[28px] font-extrabold" : "text-xl font-bold"}>
+                {formatHm(route.departureTime)}
+              </span>
+              {" → "}
+              {formatHm(route.arrivalTime)}
+              {"　"}
+              {formatDurationSecondsJa(route.durationSeconds)}
+              {"　乗り換え"}
+              {route.transfers}回{"　"}
+              {route.fareYen !== null ? `${route.fareYen.toLocaleString()}円` : "運賃不明"}
+            </div>
+            {route.segments.map((seg, i) =>
+              seg.kind === "transit" ? (
+                <div key={i} className={SEGMENT_CLASS}>
+                  🚃 {seg.lineName ?? "電車"}：{seg.departureStop} {formatHm(seg.departureTime)}発 →{" "}
+                  {seg.arrivalStop} {formatHm(seg.arrivalTime)}着
+                  {typeof seg.stopCount === "number" && `（${seg.stopCount}駅）`}
+                </div>
+              ) : (
+                <div key={i} className={SEGMENT_CLASS}>
+                  🚶 徒歩 {formatDurationSecondsJa(seg.durationSeconds)}
+                  {typeof seg.distanceMeters === "number" && `（${seg.distanceMeters}m）`}
+                </div>
+              ),
+            )}
+            <div>
+              <a
+                className="text-sm text-blue-600 hover:underline"
+                href={mapsLink(route)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Googleマップで開く
+              </a>
+            </div>
+          </CardContent>
+        </Card>
       ))}
 
       {result && sortedRoutes.length > 0 && (
-        <p className={NOTE_CLASS}>
+        <p className="text-xs text-muted-foreground">
           ※「最安」は、APIが返した候補（最大4件）のうち運賃が取得できたものの中での最安です。
           IC／切符の区別、特急・グリーン料金、定期券利用時の実質最安は対象外です。運賃が取得できないルートは「運賃不明」として分けて表示しています。
         </p>
       )}
 
       {history.length > 0 && (
-        <div className={CARD_CLASS}>
-          <strong>検索履歴</strong>
-          {history.map((h, i) => (
-            <button
-              key={i}
-              type="button"
-              className="block w-full py-1 text-left text-sm text-blue-600 hover:underline"
-              onClick={() => {
-                setDestination(h.destination);
-                setOffsetMinutes(h.offsetMinutes);
-                setSortMode(h.sortMode);
-                if (h.origin.type === "address") {
-                  setOriginMode("manual");
-                  setOriginText(h.origin.address);
-                } else {
-                  setOriginMode("gps");
-                }
-                void runSearch(
-                  { origin: h.origin, destination: h.destination, offsetMinutes: h.offsetMinutes },
-                  h.originLabel,
-                  h.sortMode,
-                  mockMode,
-                );
-              }}
-            >
-              {h.originLabel} → {h.destination}（{h.offsetMinutes}分後）
-            </button>
-          ))}
-        </div>
+        <Card className="my-3 py-4">
+          <CardContent className="px-4">
+            <CardTitle className="text-base">検索履歴</CardTitle>
+            {history.map((h, i) => (
+              <Button
+                key={i}
+                type="button"
+                variant="link"
+                className="h-auto w-full justify-start px-0 py-1"
+                onClick={() => {
+                  setDestination(h.destination);
+                  setOffsetMinutes(h.offsetMinutes);
+                  setSortMode(h.sortMode);
+                  if (h.origin.type === "address") {
+                    setOriginMode("manual");
+                    setOriginText(h.origin.address);
+                  } else {
+                    setOriginMode("gps");
+                  }
+                  void runSearch(
+                    { origin: h.origin, destination: h.destination, offsetMinutes: h.offsetMinutes },
+                    h.originLabel,
+                    h.sortMode,
+                    mockMode,
+                  );
+                }}
+              >
+                {h.originLabel} → {h.destination}（{h.offsetMinutes}分後）
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       <details className="mt-3.5">
         <summary className="cursor-pointer text-sm font-semibold">設定（無料枠ガード）</summary>
         <div className="flex gap-2.5">
           <div className="flex-1">
-            <label className={LABEL_CLASS} htmlFor="warnAt">警告件数</label>
-            <input
-              className={INPUT_CLASS}
+            <Label htmlFor="warnAt" className="pt-2 text-[13px]">
+              警告件数
+            </Label>
+            <Input
               id="warnAt"
               type="number"
               value={settings.warnAt}
@@ -541,9 +597,10 @@ export function RouteSearchApp() {
             />
           </div>
           <div className="flex-1">
-            <label className={LABEL_CLASS} htmlFor="stopAt">停止件数</label>
-            <input
-              className={INPUT_CLASS}
+            <Label htmlFor="stopAt" className="pt-2 text-[13px]">
+              停止件数
+            </Label>
+            <Input
               id="stopAt"
               type="number"
               value={settings.stopAt}
@@ -551,7 +608,9 @@ export function RouteSearchApp() {
             />
           </div>
         </div>
-        <p className={NOTE_CLASS}>初期値：警告 8,000件／停止 10,000件（Routes API Essentials の無料枠 月10,000件に合わせた値）。</p>
+        <p className="text-xs text-muted-foreground">
+          初期値：警告 8,000件／停止 10,000件（Routes API Essentials の無料枠 月10,000件に合わせた値）。
+        </p>
       </details>
     </>
   );
