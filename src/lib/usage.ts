@@ -39,6 +39,7 @@ export function loadUsage(raw: string | null | undefined, now: Date): UsageState
   }
 }
 
+/** 利用カウンタを保存用の文字列へ変換する */
 export function serializeUsage(state: UsageState): string {
   return JSON.stringify(state);
 }

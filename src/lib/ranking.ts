@@ -94,6 +94,7 @@ export interface RouteBadges {
   fewestTransfers: Set<string>;
 }
 
+/** 最安・最短・乗り換え最少のバッジ対象を判定する */
 export function computeBadges(routes: NormalizedRoute[]): RouteBadges {
   const badges: RouteBadges = {
     cheapest: new Set(),

@@ -56,6 +56,7 @@ export type ApiErrorCode =
   | "INVALID_PARAMS"
   | "LIMIT_REACHED";
 
+/** APIエラーを表す例外（エラーコードとHTTPステータスを持つ） */
 export class ApiError extends Error {
   code: ApiErrorCode;
   status: number;

@@ -8,6 +8,7 @@ export interface Cache<T> {
   size(): number;
 }
 
+/** キャッシュの実体を生成する（TTLで自動失効） */
 export function createCache<T>(ttlMs = 60_000, now: () => number = () => Date.now()): Cache<T> {
   const store = new Map<string, { value: T; expiresAt: number }>();
   return {
