@@ -17,9 +17,18 @@ import {
   serializeUsage,
   checkLimit,
   increment,
+  monthKey,
   type UsageState,
   DEFAULT_USAGE_LIMITS,
 } from "@/features/route-search/lib/usage";
+import { getSupabaseClient, ensureAnonymousSession } from "@/lib/supabase";
+import {
+  loadUserData,
+  addHistory as addRemoteHistory,
+  saveSettings as saveRemoteSettings,
+  incrementUsage as incrementRemoteUsage,
+} from "@/features/route-search/lib/user-data";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 const LS_ORIGIN = "tra.originText";
 const LS_USAGE = "tra.usage";
@@ -64,6 +73,9 @@ export function RouteSearchApp() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const usageRef = useRef(usage);
   usageRef.current = usage;
+  const sortModeRef = useRef(sortMode);
+  sortModeRef.current = sortMode;
+  const remoteRef = useRef<{ client: SupabaseClient; userId: string } | null>(null);
 
   // 初期化：localStorage 読み込み
   useEffect(() => {
@@ -81,6 +93,35 @@ export function RouteSearchApp() {
     } catch {
       /* 既定値のまま */
     }
+    // Supabase が設定されていれば、匿名認証でユーザーデータを読み込む（失敗時は localStorage のまま）。
+    void (async () => {
+      const client = getSupabaseClient();
+      if (!client) return;
+      try {
+        const userId = await ensureAnonymousSession(client);
+        remoteRef.current = { client, userId };
+        const data = await loadUserData(client);
+        setHistory(
+          data.history.map((h) => ({
+            destination: h.destination,
+            originLabel: h.origin,
+            origin: { type: "address", address: h.origin } as OriginInput,
+            offsetMinutes: 0,
+            sortMode: "recommend" as SortMode,
+            searchedAt: "",
+          })),
+        );
+        if (data.settings) {
+          setSettings({ warnAt: data.settings.warnAt, stopAt: data.settings.stopAt });
+          setSortMode(data.settings.defaultMode);
+        }
+        const month = monthKey(new Date());
+        const remoteCount = data.usage[month];
+        if (remoteCount !== undefined) setUsage({ month, count: remoteCount });
+      } catch {
+        /* Supabase が使えない場合は localStorage の表示のまま */
+      }
+    })();
   }, []);
 
   const requestGps = useCallback(() => {
@@ -157,6 +198,10 @@ export function RouteSearchApp() {
           const next = increment(usageRef.current, new Date());
           setUsage(next);
           localStorage.setItem(LS_USAGE, serializeUsage(next));
+          const remote = remoteRef.current;
+          if (remote) {
+            void incrementRemoteUsage(remote.client, remote.userId, next.month).catch(() => {});
+          }
         }
         if (params.origin.type === "address") {
           localStorage.setItem(LS_ORIGIN, params.origin.address);
@@ -174,6 +219,12 @@ export function RouteSearchApp() {
           localStorage.setItem(LS_HISTORY, JSON.stringify(next));
           return next;
         });
+        const remote = remoteRef.current;
+        if (remote) {
+          void addRemoteHistory(remote.client, remote.userId, label, params.destination).catch(
+            () => {},
+          );
+        }
       } catch {
         setErrorCode("UPSTREAM_ERROR");
         setErrorDetail("サーバーへの接続に失敗しました");
@@ -232,6 +283,14 @@ export function RouteSearchApp() {
   const saveSettings = (next: Settings) => {
     setSettings(next);
     localStorage.setItem(LS_SETTINGS, JSON.stringify(next));
+    const remote = remoteRef.current;
+    if (remote) {
+      void saveRemoteSettings(remote.client, remote.userId, {
+        defaultMode: sortModeRef.current,
+        warnAt: next.warnAt,
+        stopAt: next.stopAt,
+      }).catch(() => {});
+    }
   };
 
   return (
