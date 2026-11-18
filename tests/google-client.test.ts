@@ -153,3 +153,33 @@ describe("fetchRoutes", () => {
     ).rejects.toMatchObject({ code: "INVALID_PARAMS" });
   });
 });
+
+describe("parseSearchParams origin の形式バリエーション", () => {
+  it("UT-095: type: address の origin は前後の空白を除いて採用する", () => {
+    expect(
+      parseSearchParams({ origin: { type: "address", address: " 品川駅 " }, destination: "新宿" }).origin,
+    ).toEqual({ type: "address", address: "品川駅" });
+  });
+  it("UT-096: 範囲外の緯度経度は INVALID_PARAMS（異常系）", () => {
+    expect(() =>
+      parseSearchParams({ origin: { type: "latLng", latitude: 999, longitude: 139 }, destination: "新宿" }),
+    ).toThrowError(ApiError);
+  });
+  it("UT-097: 数値の origin は INVALID_PARAMS（異常系）", () => {
+    expect(() => parseSearchParams({ origin: 123, destination: "新宿" })).toThrowError(ApiError);
+  });
+});
+
+describe("parseSearchParams origin の異常系追加", () => {
+  it("UT-098: 空白だけの住所は INVALID_PARAMS（異常系）", () => {
+    expect(() =>
+      parseSearchParams({ origin: { type: "address", address: " " }, destination: "新宿" }),
+    ).toThrowError(ApiError);
+  });
+});
+
+describe("parseSearchParams origin 文字列の異常系", () => {
+  it("UT-099: 空白だけの文字列 origin は INVALID_PARAMS（異常系）", () => {
+    expect(() => parseSearchParams({ origin: " ", destination: "新宿" })).toThrowError(ApiError);
+  });
+});
