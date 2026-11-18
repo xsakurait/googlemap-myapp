@@ -201,6 +201,9 @@ export function RouteSearchApp() {
   }, [requestGps]);
 
   const limitStatus = checkLimit(usage, settings.warnAt, settings.stopAt);
+  const serpLimitStatus = checkLimit(serpUsage, SERPAPI_LIMITS.warnAt, SERPAPI_LIMITS.stopAt);
+  const serpStopped = serpLimitStatus === "stop";
+  const [limitNotice, setLimitNotice] = useState<string | null>(null);
   const stopped = limitStatus === "stop" && !mockMode;
 
   const currentOrigin = useCallback((): OriginInput | null => {
@@ -303,6 +306,21 @@ export function RouteSearchApp() {
       setErrorDetail("移動手段を1つ以上選んでください");
       return;
     }
+    setLimitNotice(null);
+    let effectiveModes = selected;
+    if (serpStopped && (selected.includes("transit") || selected.includes("flight"))) {
+      if (selected.every((m) => m === "transit" || m === "flight")) {
+        setErrorCode("LIMIT_REACHED");
+        setErrorDetail(
+          "SerpApi の無料枠（月250件）の上限に達したため、電車・バス／飛行機の検索を停止しています。翌月に回復します。",
+        );
+        return;
+      }
+      effectiveModes = selected.filter((m) => m !== "transit" && m !== "flight");
+      setLimitNotice(
+        "SerpApi の無料枠（月250件）の上限に達したため、電車・バス／飛行機は検索しませんでした（翌月に回復します）。",
+      );
+    }
     const origin = currentOrigin();
     if (!destination.trim()) {
       setErrorCode("INVALID_PARAMS");
@@ -315,7 +333,7 @@ export function RouteSearchApp() {
       return;
     }
     void runSearch(
-      { origin, destination: destination.trim(), offsetMinutes, modes: selected },
+      { origin, destination: destination.trim(), offsetMinutes, modes: effectiveModes },
       originLabel(),
       sortMode,
       mockMode,
@@ -459,12 +477,19 @@ export function RouteSearchApp() {
                 <Checkbox
                   id={`mode-${m}`}
                   checked={modes[m]}
+                  disabled={serpStopped && (m === "transit" || m === "flight")}
                   onCheckedChange={(v) => setModes((prev) => ({ ...prev, [m]: v === true }))}
                 />
                 <Label htmlFor={`mode-${m}`}>{MODE_LABELS[m]}</Label>
               </div>
             ))}
           </div>
+
+          {serpStopped && (
+            <p className="pt-1 text-xs text-red-600">
+              SerpApi の無料枠（月250件）の上限に達したため、電車・バス／飛行機は選択できません（翌月に回復します）。
+            </p>
+          )}
 
           <div className="flex items-center gap-2 pt-2">
             <Checkbox
@@ -489,15 +514,33 @@ export function RouteSearchApp() {
                 : "検索する"}
           </Button>
 
-          <p className="pt-2 text-xs text-muted-foreground">
-            今月のAPI利用：{usage.count} 件（警告 {settings.warnAt} 件／停止 {settings.stopAt} 件）
+          <p
+            className={
+              limitStatus === "stop"
+                ? "pt-2 text-xs font-semibold text-red-600"
+                : limitStatus === "warn"
+                  ? "pt-2 text-xs font-semibold text-amber-600"
+                  : "pt-2 text-xs text-muted-foreground"
+            }
+          >
+            Google Routes API：今月 {usage.count} 件使用（上限 {settings.stopAt} 件・残り{" "}
+            {Math.max(0, settings.stopAt - usage.count)} 件）
             {limitStatus === "warn" && " ※無料枠の上限が近づいています"}
-            {limitStatus === "stop" && " ※上限に達したため実データ検索を停止中です"}
+            {limitStatus === "stop" && " ※上限に達したため車・徒歩の検索を停止中です"}
           </p>
-          <p className="text-xs text-muted-foreground">
-            SerpApi 今月：{serpUsage.count} 件（警告 {SERPAPI_LIMITS.warnAt} 件／上限{" "}
-            {SERPAPI_LIMITS.stopAt} 件）
-            {serpUsage.count >= SERPAPI_LIMITS.stopAt && " ※無料枠の上限に達しています"}
+          <p
+            className={
+              serpLimitStatus === "stop"
+                ? "text-xs font-semibold text-red-600"
+                : serpLimitStatus === "warn"
+                  ? "text-xs font-semibold text-amber-600"
+                  : "text-xs text-muted-foreground"
+            }
+          >
+            SerpApi：今月 {serpUsage.count} 件使用（上限 {SERPAPI_LIMITS.stopAt} 件・残り{" "}
+            {Math.max(0, SERPAPI_LIMITS.stopAt - serpUsage.count)} 件）
+            {serpLimitStatus === "warn" && " ※無料枠の上限が近づいています"}
+            {serpLimitStatus === "stop" && " ※上限に達したため電車・バス／飛行機の検索を停止中です"}
           </p>
         </CardContent>
       </Card>
@@ -514,6 +557,12 @@ export function RouteSearchApp() {
               PC上の .env.local に GOOGLE_MAPS_API_KEY を設定 → アプリ再起動（手順は README のセットアップ）
             </AlertDescription>
           )}
+        </Alert>
+      )}
+
+      {limitNotice && (
+        <Alert className="my-3 border-amber-200 bg-amber-50 text-amber-900">
+          <AlertDescription className="text-amber-900">{limitNotice}</AlertDescription>
         </Alert>
       )}
 
