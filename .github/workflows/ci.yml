@@ -52,6 +52,11 @@ jobs:
             echo "Prettier 未導入のためフォーマットチェックをスキップします"
           fi
 
+      # 規約チェック: 構成・命名・コメント（docs/12 参照）。依存なしで動くため install 前に実行する
+      - name: Convention check
+        if: steps.detect.outputs.exists == 'true'
+        run: node scripts/check-conventions.mjs
+
       - name: Typecheck
         if: steps.detect.outputs.exists == 'true'
         run: npm run typecheck
