@@ -10,6 +10,7 @@
 - 詳細設計書：`docs/04_詳細設計書.md`／SQL 一覧：`docs/05_SQL一覧.md`／物理 ER 図：`docs/06_物理ER図.md`
 - バッチ処理定義：`docs/07_バッチ処理定義.md`／クラス図：`docs/08_クラス図.md`／シーケンス図：`docs/09_シーケンス図.md`
 - 共通項目定義：`docs/11_共通項目定義.md`
+- Supabase 設計：`docs/17_Supabase設計.md`
 
 ## セットアップ
 
@@ -19,6 +20,16 @@
    - ローカル：`start.bat` をダブルクリック → ブラウザで `http://localhost:3000` を開く（手動の場合：`npm install` → `npm run build` → `npm run start`）
    - Docker：`docker compose up --build` → `http://localhost:3000`
 4. キーなしでも「モックデータで試す」で画面確認ができる。
+
+## Supabase のセットアップ（任意）
+
+検索履歴・設定・利用カウンタを端末・ユーザー単位で Supabase に保存する場合の設定。未設定なら localStorage のみで動作する。設計は `docs/17_Supabase設計.md`、テーブルと RLS の定義は `supabase/schema.sql` を参照。
+
+1. Supabase でプロジェクトを作成する（無料枠でよい）。
+2. SQL Editor で `supabase/schema.sql` を実行し、テーブルと RLS ポリシーを作る。
+3. Authentication の設定で Anonymous Sign-ins（匿名サインイン）を有効化する。
+4. Project Settings → API の Project URL と anon key を、`.env.local` の `NEXT_PUBLIC_SUPABASE_URL` と `NEXT_PUBLIC_SUPABASE_ANON_KEY` に入れる。
+5. `NEXT_PUBLIC_` 変数はビルド時に埋め込まれるため、アプリを再ビルドして再起動する。
 
 ## Docker と展開
 
