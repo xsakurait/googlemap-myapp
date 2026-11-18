@@ -57,9 +57,9 @@ const FLIGHTS_FIXTURE = {
 
 describe("readSerpApiKey", () => {
   it("UT-150: 設定されていれば値を返し、未設定・空白は null", () => {
-    expect(readSerpApiKey({ SERPAPI_API_KEY: "abc" } as NodeJS.ProcessEnv)).toBe("abc");
-    expect(readSerpApiKey({} as NodeJS.ProcessEnv)).toBeNull();
-    expect(readSerpApiKey({ SERPAPI_API_KEY: "  " } as NodeJS.ProcessEnv)).toBeNull();
+    expect(readSerpApiKey({ SERPAPI_API_KEY: "abc" } as unknown as NodeJS.ProcessEnv)).toBe("abc");
+    expect(readSerpApiKey({} as unknown as NodeJS.ProcessEnv)).toBeNull();
+    expect(readSerpApiKey({ SERPAPI_API_KEY: "  " } as unknown as NodeJS.ProcessEnv)).toBeNull();
   });
 });
 
