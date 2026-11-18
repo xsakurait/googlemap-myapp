@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeDepartureIso, parseDurationSeconds, formatHm, formatDurationJa } from "@/features/route-search/lib/time";
+import { computeDepartureIso, parseDurationSeconds, formatHm, formatDurationJa, formatDurationSecondsJa } from "@/features/route-search/lib/time";
 
 describe("computeDepartureIso", () => {
   it("UT-001: オフセット0分は基準時刻そのものを返す", () => {
@@ -57,5 +57,24 @@ describe("formatDurationJa", () => {
   it("UT-013: 0分は '0分'、負数は0に丸める（境界値）", () => {
     expect(formatDurationJa(0)).toBe("0分");
     expect(formatDurationJa(-5)).toBe("0分");
+  });
+});
+
+describe("formatDurationSecondsJa / parseDurationSeconds 追加", () => {
+  it("UT-014: 秒数を日本語表記にする", () => {
+    expect(formatDurationSecondsJa(0)).toBe("0分");
+    expect(formatDurationSecondsJa(3600)).toBe("1時間");
+    expect(formatDurationSecondsJa(5400)).toBe("1時間30分");
+    expect(formatDurationSecondsJa(61)).toBe("1分");
+  });
+  it("UT-015: 非有限の数値は 0（異常系）", () => {
+    expect(parseDurationSeconds(Number.NaN)).toBe(0);
+    expect(parseDurationSeconds(Number.POSITIVE_INFINITY)).toBe(0);
+  });
+});
+
+describe("parseDurationSeconds 境界追加", () => {
+  it("UT-016: 桁あふれする数値文字列は 0（異常系）", () => {
+    expect(parseDurationSeconds("9".repeat(400) + "s")).toBe(0);
   });
 });
