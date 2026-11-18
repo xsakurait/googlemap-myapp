@@ -6,7 +6,7 @@ vi.mock("@/features/route-search/lib/google-client", () => ({
   fetchRoutes: vi.fn(),
 }));
 
-import { POST } from "@/app/api/routes/route";
+import { POST } from "@/app/api/[[...route]]/route";
 import { parseSearchParams, fetchRoutes } from "@/features/route-search/lib/google-client";
 
 const parseMock = vi.mocked(parseSearchParams);
