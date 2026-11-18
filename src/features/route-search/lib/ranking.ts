@@ -19,7 +19,7 @@ function normalize(value: number, range: { min: number; max: number }): number {
  * - 運賃不明の組: 運賃を除き、所要時間と乗り換えを 0.5/0.5 で再配分してスコア化
  *   （recommend ソートでは不明組は確定組の後ろに回るため、組内の順序付け専用）
  */
-export function scoreRoutes(routes: NormalizedRoute[]): NormalizedRoute[] {
+export function scoreRoutes(routes: NormalizedRoute[]): (NormalizedRoute & { score: number })[] {
   if (routes.length === 0) return [];
   const durationRange = minMax(routes.map((r) => r.durationSeconds));
   const transfersRange = minMax(routes.map((r) => r.transfers));
@@ -53,7 +53,7 @@ export function sortRoutes(routes: NormalizedRoute[], mode: SortMode): Normalize
         const aKnown = a.fareYen !== null;
         const bKnown = b.fareYen !== null;
         if (aKnown !== bKnown) return aKnown ? -1 : 1;
-        const s = (a.score ?? 0) - (b.score ?? 0);
+        const s = a.score - b.score;
         if (s !== 0) return s;
         if (a.durationSeconds !== b.durationSeconds) return a.durationSeconds - b.durationSeconds;
         return a.transfers - b.transfers;
